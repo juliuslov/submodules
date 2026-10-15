@@ -6,7 +6,7 @@ import struct
 import subprocess
 import tempfile
 import unittest
-from mobi_fixture import make_mobi
+from mobi_fixture import make_mobi, make_hybrid
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKER = ROOT / 'services/mobi/python/decode.py'
@@ -93,6 +93,10 @@ class MobiTests(unittest.TestCase):
             first, = struct.unpack_from('>I', data, 78)
             struct.pack_into(fmt, data, first+field, value)
             self.assertNotEqual(self.invoke(data).returncode, 0)
+
+        hybrid = self.invoke(make_hybrid())
+        self.assertNotEqual(hybrid.returncode, 0)
+        self.assertIn(b'hybrid', hybrid.stderr)
 
     def test_declared_length_mismatch(self):
         data = bytearray(make_mobi())

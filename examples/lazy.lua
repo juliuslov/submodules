@@ -1,3 +1,4 @@
+-- Requires Node 22+, C/Make, Rust 1.70+, and Python 3.8+ for MOBI conversion.
 -- Add this local companion spec to your lazy.nvim plugin list.
 -- After publishing/merging the implementation, replace `dir` with
 -- 'juliuslov/submodules'. It is not yet an upstream installer.nvim feature.

@@ -32,7 +32,7 @@ def clean(text):
 
 
 class TextBook(HTMLParser):
-    BLOCKS = {'p', 'div', 'section', 'article', 'li', 'blockquote', 'pre', 'h2', 'h3', 'h4', 'tr'}
+    BLOCKS = {'p', 'div', 'section', 'article', 'li', 'blockquote', 'pre', 'h2', 'h3', 'h4', 'tr', 'td', 'th'}
     IGNORED = {'head', 'script', 'style', 'iframe', 'object'}
 
     def __init__(self):

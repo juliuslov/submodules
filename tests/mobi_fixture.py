@@ -45,3 +45,29 @@ def make_mobi(raw=None, compression=1, encoding=65001, title='Fixture book', aut
         struct.pack_into('>II', pdb, 78+i*8, offset, i*2)
         offset += len(record)
     return bytes(pdb) + b''.join(records)
+
+
+def make_hybrid():
+    """Legacy/KF8 header fixture with a real BOUNDARY record."""
+    base = make_mobi()
+    count, = struct.unpack_from('>H', base, 76)
+    offsets = [struct.unpack_from('>I', base, 78+i*8)[0] for i in range(count)] + [len(base)]
+    records = [base[offsets[i]:offsets[i+1]] for i in range(count)]
+    old0 = records[0]
+    record0 = bytearray(old0[:260] + struct.pack('>III', 121, 12, 4) + old0[260:])
+    struct.pack_into('>I', record0, 84, struct.unpack_from('>I', old0, 84)[0] + 12)
+    struct.pack_into('>I', record0, 252, struct.unpack_from('>I', old0, 252)[0] + 12)
+    struct.pack_into('>I', record0, 256, 4)
+    kf8 = bytearray(old0[:248] + b'\0'*32 + old0[248:])
+    for offset, value in [(20, 264), (36, 8), (104, 8), (84, struct.unpack_from('>I', old0, 84)[0]+32)]:
+        struct.pack_into('>I', kf8, offset, value)
+    parts = [record0, records[1], records[2], b'BOUNDARY', kf8, records[1], records[2]]
+    header = bytearray(78 + len(parts)*8 + 2)
+    header[:6] = b'hybrid'
+    header[60:68] = b'BOOKMOBI'
+    struct.pack_into('>H', header, 76, len(parts))
+    offset = len(header)
+    for i, record in enumerate(parts):
+        struct.pack_into('>II', header, 78+i*8, offset, i*2)
+        offset += len(record)
+    return bytes(header) + b''.join(parts)

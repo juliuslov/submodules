@@ -28,7 +28,11 @@ vim = {
     return { pid = 1 }
   end,
   fn = { exists = function(name) return commands[name:sub(2)] and 2 or 0 end },
-  api = { nvim_create_user_command = function(name, fn, opts) commands[name] = { fn = fn, opts = opts } end },
+  api = { nvim_create_user_command = function(name, fn, opts)
+    local nargs = opts.nargs
+    assert(nargs == nil or nargs == 0 or nargs == 1 or nargs == '*' or nargs == '+' or nargs == '?', 'invalid Neovim nargs')
+    commands[name] = { fn = fn, opts = opts }
+  end },
   notify = function(message) notifications[#notifications + 1] = message end,
   log = { levels = { ERROR = 1, INFO = 2 } },
 }
@@ -128,5 +132,24 @@ test('KoSync push command requires explicit bang', function()
   local before = #calls
   commands.WizKoSyncPush.fn({ args = '/progress.json', bang = false })
   assert(#calls == before and notifications[#notifications]:find('WizKoSyncPush!'))
+end)
+test('MOBI wrappers transmit direction paths over JSON without a shell', function()
+  require('wizardo_services.mobi').convert('/books/book with spaces.epub', '/out;no shell.mobi', function(err) assert(not err) end)
+  local request = Json.decode(calls[#calls].opts.stdin)
+  assert(request.action == 'mobi-convert' and request.path == '/books/book with spaces.epub' and request.output == '/out;no shell.mobi')
+  require('wizardo_services.mobi').inspect('/books/book.mobi', function(err) assert(not err) end)
+  assert(Json.decode(calls[#calls].opts.stdin).action == 'mobi-inspect')
+end)
+test('MOBI commands register correct arity and forward conversion arguments', function()
+  assert(commands.WizMobiInspect.opts.nargs == 1 and commands.WizMobiConvert.opts.nargs == '+')
+  local UI = require('wizardo_services.ui')
+  local show = UI.show; UI.show = function() end
+  commands.WizMobiConvert.fn({ fargs = { '/in.epub', '/out.mobi' } })
+  assert(Json.decode(calls[#calls].opts.stdin).output == '/out.mobi')
+  UI.show = show
+  local before = #calls
+  commands.WizMobiConvert.fn({ fargs = { '/in.epub' } })
+  commands.WizMobiConvert.fn({ fargs = { '/in.epub', '/out.mobi', 'extra' } })
+  assert(#calls == before and notifications[#notifications]:find('WizMobiConvert'))
 end)
 print('1..' .. count)

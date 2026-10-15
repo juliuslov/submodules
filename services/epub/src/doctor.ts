@@ -1,3 +1,4 @@
+import { mobiBinary, pythonBinary } from '../../mobi/convert';
 import { asciiBinary } from '../../ascii/bridge';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -10,8 +11,19 @@ export function doctor(): object {
   let ascii: object;
   try { ascii = { available: true, version: execFileSync(asciiBinary(), ['--version'], { encoding: 'utf8', timeout: 5000 }).trim() }; }
   catch { ascii = { available: false, error: 'build the Rust ASCII service with make ascii' }; }
+  let mobiNative: { available: boolean; version?: string; error?: string };
+  let python: { available: boolean; version?: string; error?: string };
+  try { mobiNative = { available: true, version: execFileSync(mobiBinary(), ['--version'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 }).trim() }; }
+  catch { mobiNative = { available: false, error: 'initialize submodules and run make mobi; WIZ_MOBI may override the binary' }; }
+  try { python = { available: true, version: execFileSync(pythonBinary(), ['-c', 'import sys; assert sys.version_info >= (3, 8); print(sys.version.split()[0])'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 }).trim() }; }
+  catch { python = { available: false, error: 'install Python >= 3.8 or set WIZ_PYTHON' }; }
+  const kindleunpack = existsSync(join(ROOT, 'vendor/kindleunpack/lib/mobi_header.py'));
+  const mobi = { available: mobiNative.available && python.available && kindleunpack,
+    native: mobiNative, python, textOnly: true, exportFormat: 'MOBI6' };
   const kosync = { available: true, configured: Boolean(process.env.KOSYNC_USERNAME && (Boolean(process.env.KOSYNC_PASSWORD) !== Boolean(process.env.KOSYNC_USERKEY))), onlineCheck: false };
-  return { ascii, kosync, node: process.version, archive, submodules: {
+  return { mobi, ascii, kosync, node: process.version, archive, submodules: {
+    libmobi: existsSync(join(ROOT, 'vendor/libmobi/src/mobi.h')),
+    kindleunpack,
     stb: existsSync(join(ROOT, 'vendor/stb/stb_image.h')),
     miniz: existsSync(join(ROOT, 'vendor/miniz/miniz.h')),
     fflate: existsSync(join(ROOT, 'vendor/fflate/src/index.ts')),

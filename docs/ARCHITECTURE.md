@@ -5,7 +5,11 @@ Neovim commands / Lua API
   └─ client.lua ── JSON stdin / argv ── TypeScript CLI
        └─ kaeru.process.run or vim.system    ├─ EPUB read/write
                                             ├─ library search / doctor
-                                            └─ C archive checker (miniz)
+                                            ├─ C archive checker (miniz)
+                                            └─ MOBI conversion
+                                                ├─ original TS MOBI6 serializer
+                                                ├─ C → shared libmobi validator
+                                                └─ Python → KindleUnpack decoder
 ```
 
 The C checker has path validation, JSON escaping, ZIP policy/integrity checks,
@@ -40,7 +44,10 @@ Neovim scratch buffers are nofile, nonmodifiable, and wiped when hidden.
 
 Original service code currently has no distribution license grant
 (`package.json` uses `UNLICENSED`); select an appropriate project license before
-redistributing it. The four upstream libraries retain their own MIT licenses.
+redistributing it. The four earlier upstream libraries retain their MIT licenses. The new MOBI
+components use LGPL-3.0+ (libmobi) and GPL-3.0 (KindleUnpack and the original
+Python adapter). See [licensing/distribution notes](MOBI.md#component-licensing-and-redistribution);
+these additions do not silently relicense all existing original code.
 
 
 ## Additional service paths
@@ -72,3 +79,21 @@ per-chapter position, not persistent bookmarks or KOReader XPointers.
 
 There are no GitHub workflow files. Validation commands and editor-model tests
 are local; real Neovim integration is available in `tests/headless.lua`.
+
+
+## MOBI process boundaries
+
+`services/mobi/writer.ts` serializes plain text into deterministic, uncompressed
+UTF-8 MOBI6. UTF-8 sequences stay intact at 4096-byte record boundaries.
+`services/mobi/convert.ts` snapshots bounded input and uses the existing EPUB
+reader/writer. `native/main.c` preflights PDB tables before loading a replaceable
+libmobi shared library, bounds decompression, and rejects unsupported variants.
+`python/decode.py` runs native validation before an independent KindleUnpack
+decode, parses HTML as text, and returns JSON without extracting any resources.
+Every new MOBI export must pass both engines before exclusive output creation.
+
+Python runs with a parent-enforced timeout/output cap and best-effort POSIX
+CPU/address-space caps. Snapshot cleanup runs in `finally`. No network requests,
+startup conversion, automatic DRM processing or upstream resource extraction
+are used. No lossless fidelity or format-conformance certification is claimed.
+See [MOBI behavior and component licenses](MOBI.md).

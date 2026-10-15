@@ -37,6 +37,8 @@ with tempfile.TemporaryDirectory() as directory:
     image = Path(directory) / 'Lua image.ppm'
     image.write_bytes(b'P6\n2 1\n255\n\x00\x00\x00\xff\xff\xff')
     lua.globals().test_image = str(image)
+    lua.globals().test_mobi = str(Path(directory) / 'Lua book.mobi')
+    lua.globals().test_roundtrip = str(Path(directory) / 'Lua roundtrip.epub')
     lua.execute('''
       local epub = require('wizardo_services.epub')
       local exported, inspected, read = false, false, false
@@ -58,5 +60,20 @@ with tempfile.TemporaryDirectory() as directory:
         assert(not err, err); assert(#data.document == 32); fingerprinted = true
       end)
       assert(rendered and fingerprinted)
+      local converted, decoded, restored = false, false, false
+      local mobi = require('wizardo_services.mobi')
+      mobi.convert(test_output, test_mobi, function(err, data)
+        assert(not err, err); assert(data.to == 'mobi' and not data.lossless); converted = true
+      end)
+      mobi.inspect(test_mobi, function(err, data)
+        assert(not err, err); assert(data.title == 'Lua book' and data.version == 6); decoded = true
+      end)
+      mobi.convert(test_mobi, test_roundtrip, function(err, data)
+        assert(not err, err); assert(data.to == 'epub'); restored = true
+      end)
+      assert(converted and decoded and restored)
+      epub.read(test_roundtrip, 0, function(err, data)
+        assert(not err, err); assert(data.text:find('Written from Lua.', 1, true))
+      end)
     ''')
-print('PASS: real Lua RPC for EPUB, Rust ASCII, and offline KoSync checksum')
+print('PASS: real Lua RPC for EPUB, Rust ASCII, bidirectional MOBI, and offline KoSync checksum')

@@ -2,7 +2,8 @@
 
 C, Rust, Lua, and TypeScript companion services for
 [`getwizardo/installer.nvim`](https://github.com/getwizardo/installer.nvim).
-Includes **EPUB reading and generation**, **image-to-ASCII in Rust**, a
+Includes **EPUB reading and generation**, **EPUB ↔ legacy MOBI conversion**,
+**image-to-ASCII in Rust**, a
 **KOReader KoSync client**, native ZIP checks, local library search, and diagnostics.
 
 This is a standalone companion in `juliuslov/submodules`, **not a patch already
@@ -12,17 +13,17 @@ commands or configuration keys are replaced.
 
 ## Build and test
 
-Requirements: Node **22+**, npm, a C99 compiler, Rust 1.70+ (`rustc`), `ar`, Make, and Python 3 for native
+Requirements: Node **22+**, npm, a C99 compiler, Rust 1.70+ (`rustc`), `ar`, Make, and **Python 3.8+** for MOBI conversion and native
 tests. Target platforms: POSIX Linux/macOS. Neovim **0.10+** is recommended for
 the companion UI; `kaeru.process` also supplies an older-Neovim process fallback.
-Local EPUB/ASCII operations need no GUI, server, database, or network. KoSync
+Local EPUB/MOBI/ASCII operations need no GUI, server, database, or network. KoSync
 uses the network only when you explicitly request registration, auth, pull, or push.
 
 ```sh
 cd /path/to/submodules
 git submodule update --init --recursive
 npm ci
-npm test                    # build, strict TS check, C and TS tests
+npm test                    # build, strict TS check, C/Python/Rust/Node tests
 npm run doctor
 ```
 
@@ -36,9 +37,12 @@ The build writes ignored `build/` and `dist/` directories, not library sources.
 | `vendor/fflate` | TypeScript | EPUB ZIP read/write |
 | `vendor/stb` | Rust via C shim | PNG/JPEG/BMP/PNM decoding for ASCII |
 | `vendor/dkjson` | Lua | JSON fallback outside Neovim / without `vim.json` |
+| `vendor/libmobi` | C shared library | Legacy MOBI validation, metadata and text decompression (LGPL-3.0+) |
+| `vendor/kindleunpack` | Python subprocess | Independent legacy MOBI text decoding (GPL-3.0) |
 
 See [research sources and pins](docs/RESEARCH.md). Keep upstream licenses in the
-submodules. No build-time `git submodule update --remote` is used.
+submodules; the two MOBI dependencies have copyleft licenses, not MIT. Review
+[component licensing](docs/MOBI.md#component-licensing-and-redistribution) before distribution. No build-time `git submodule update --remote` is used.
 
 Optional Lua 5.1 tests (when a `lua5.1` binary is unavailable):
 
@@ -52,7 +56,7 @@ python3 -m venv .venv
 
 This harness mocks Neovim scheduling/UI, but also executes a real Lua →
 TypeScript → C export/inspect/read round trip, a Rust ASCII conversion, and an
-offline KoSync document checksum. To test the actual editor:
+offline KoSync document checksum, plus bidirectional MOBI conversion. To test the actual editor:
 
 ```sh
 nvim --headless -u NONE -l tests/headless.lua
@@ -107,6 +111,8 @@ require('wizardo_services').register_commands() -- needed if adding rtp after st
 | --- | --- |
 | `:WizEpubOpen /path/book.epub` | Open the Ghost-inspired responsive reader with chapter navigation |
 | `:WizEpubClose` | Close the reader and restore your previous window |
+| `:WizMobiInspect /path/book.mobi` | Inspect DRM-free legacy MOBI metadata |
+| `:WizMobiConvert /path/book.epub /path/new.mobi` | Convert EPUB to text-focused MOBI6 (reverse with `.epub` output) |
 | `:WizEpubInspect /path/book.epub` | Show metadata and spine as JSON |
 | `:WizEpubExport /path/new.epub` | Export the current buffer as one text chapter |
 | `:WizLibrary /path/to/books` | Show a nonrecursive local EPUB inventory |
@@ -211,3 +217,21 @@ Use `n`/`p` for chapters, `t` for contents, `d` for theme, and `q` to close.
 Configure `reader = { theme = 'auto' }` in `setup`. This is a mobile-terminal
 layout, not a separate phone app. See [reader controls and limits](docs/READER.md).
 No GitHub workflow is included; tests are run locally.
+
+
+## EPUB ↔ MOBI converter
+
+```sh
+node dist/cli.cjs mobi-convert '/books/source.epub' '/books/new.mobi'
+node dist/cli.cjs mobi-inspect '/books/new.mobi'
+node dist/cli.cjs mobi-convert '/books/legacy.mobi' '/books/new.epub'
+```
+
+Also available as `:WizMobiConvert`, `:WizMobiInspect`, Lua APIs and JSON RPC.
+New exports are validated with **both** pinned MOBI libraries before exclusive
+file creation. Python 3.8+ is required at runtime; no pip package is needed.
+
+**Text-focused, not lossless:** DRM-free legacy MOBI6/7 only. Images, fonts,
+layout and original navigation are not retained. KF8/AZW3/KFX, hybrid files,
+HUFF/CDIC, dictionaries and encrypted books return errors rather than misleading
+conversions. See [formats, limits, APIs and licensing](docs/MOBI.md).

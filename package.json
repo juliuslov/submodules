@@ -1,18 +1,19 @@
 {
   "name": "wizardo-submodule-services",
   "version": "1.0.0",
-  "description": "C Rust Lua and TypeScript EPUB ASCII and KoSync companion services for installer.nvim",
+  "description": "C Rust Lua TypeScript EPUB MOBI ASCII and KoSync companion services for installer.nvim",
   "directories": {
     "doc": "docs",
     "test": "tests"
   },
   "scripts": {
     "build:types": "tsc -p scripts/tsconfig.vendor.json",
-    "build": "make native ascii && npm run build:types && node scripts/build.mjs",
+    "build": "make native ascii mobi && npm run build:types && node scripts/build.mjs",
     "typecheck": "npm run build:types && tsc --noEmit",
-    "test": "npm run build && npm run typecheck && make test-native test-ascii && node --test tests/*.test.cjs",
+    "test": "npm run build && npm run typecheck && make test-native test-ascii test-mobi && node --test tests/*.test.cjs",
     "doctor": "node dist/cli.cjs doctor",
-    "build:ascii": "make ascii"
+    "build:ascii": "make ascii",
+    "build:mobi": "make mobi"
   },
   "repository": {
     "type": "git",

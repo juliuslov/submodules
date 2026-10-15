@@ -67,3 +67,33 @@ run in this sandbox because Neovim is not installed here.
   this sandbox; the editor model is not a claim of real terminal validation.
 * All GitHub workflow files were removed at the user's request. No CI job is
   created by this change.
+
+## MOBI converter — 2026-10-16
+
+* Full `npm test`: **11 archive C/Python + 11 Rust + 15 MOBI C/Python +
+  47 Node tests** pass, with strict TypeScript checking. The 12 new Node tests
+  exercise both conversion directions, independent decoding, deterministic
+  MOBI6 export, Unicode record boundaries, source magic detection, skipped empty
+  spine entries, overwrite/symlink/concurrent publication protection, malformed
+  inputs, DRM/unsupported variants, missing tools and CLI/RPC dispatch.
+* `.venv/bin/python tests/run_lua.py`: **19 Lua service + 21 reader-model tests**
+  pass, plus real Lua → TS → C/Python EPUB/MOBI round-trips, Rust ASCII and
+  offline KoSync integrations. **124 tests total**, plus integration assertions.
+* Independent synthetic PDB/MOBI fixtures cover legacy versions 6/7,
+  uncompressed text, PalmDOC literal runs/backreferences/space pairs,
+  Windows-1252 metadata/text, truncated/nonmonotonic tables, encryption flags,
+  limits, bad decompressed lengths, print replicas, FIFO rejection, UTF-8
+  transcoding budgets, large-chapter splitting and unsafe markup/DTD input.
+* The libmobi core and companion native adapter were also built with
+  `-fsanitize=undefined -fno-sanitize-recover=all -Werror`; all 15 MOBI Python
+  and 12 MOBI Node tests passed with `UBSAN_OPTIONS=halt_on_error=1`. The ordinary
+  release build was restored afterward. Upstream sources were not modified.
+* `npm run doctor` detects both new source submodules, Python 3.11 and
+  `wiz-mobi 1.0.0 / libmobi git-9062742`. No remote service is contacted.
+
+The converter targets a bounded **text-focused legacy subset**, not lossless
+Kindle conversion. Both pinned decoders accepting an export is not a full
+conformance certificate. No physical Kindle, Amazon delivery-service,
+EPUBCheck, macOS or real Neovim run was performed. `tests/headless.lua` was
+extended for MOBI conversion but still requires a locally installed Neovim.
+No GitHub workflow was added. See [MOBI limits and licenses](MOBI.md).

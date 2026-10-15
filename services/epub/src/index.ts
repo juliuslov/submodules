@@ -11,3 +11,7 @@ export type { AsciiOptions } from '../../ascii/bridge';
 export { KoSyncClient, DEFAULT_SERVER } from '../../kosync/client';
 export { partialMd5, filenameMd5, documentChecksum } from '../../kosync/checksum';
 export type { KoSyncConfig, ProgressUpdate, ProgressState } from '../../kosync/types';
+
+export { convertMobi, inspectMobi } from '../../mobi/convert';
+export { createMobiBytes } from '../../mobi/writer';
+export type { MobiInfo, ConversionResult } from '../../mobi/convert';

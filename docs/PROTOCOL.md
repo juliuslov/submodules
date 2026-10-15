@@ -12,7 +12,9 @@ network; explicit KoSync requests use credentials from the runtime environment.
 | `create` | `input` (book below), `output` | output `path`, byte count `bytes` |
 | `scan` | directory `path`, optional `query` | books[{path,info}], errors[{path,error}] |
 | `archive` | `path` | native inventory: ok, totalBytes, entries[] |
-| `doctor` | none | node version, archive availability/version, source submodule presence |
+| `mobi-convert` | input `path`, `output` ending in `.mobi` or `.epub` | path, bytes, from, to, title, chapters, lossless:false, warnings[] |
+| `mobi-inspect` | `path` | version, compression, encoding, textBytes, records, title, author, language |
+| `doctor` | none | node version, archive/ASCII/MOBI runtime availability, source submodule presence |
 
 A chapter descriptor has `id`, archive-relative `href`, `mediaType`, and
 boolean `linear`. A scan query is a case-insensitive title/creator substring.
@@ -49,7 +51,8 @@ Examples:
 ```
 
 `doctor` itself succeeds even if a component is missing, so inspect the returned
-`archive.available` and `submodules` flags. Error text is diagnostic, not a
+`archive.available`, `mobi.available`, and `submodules` flags. MOBI reports
+native and Python availability separately and never contacts a server. Error text is diagnostic, not a
 stable machine-readable error-code taxonomy. Protocol consumers should branch
 on exit status and `ok`. stdout contains no progress logs.
 
@@ -60,3 +63,7 @@ on exit status and `ok`. stdout contains no progress logs.
   See [ASCII protocol](ASCII.md).
 * `kosync`: nested `sync` request with `operation` (`authorize`, `register`,
   `pull`, `push`, `document`). See [KoSync protocol](KOSYNC.md).
+
+* `mobi-convert` / `mobi-inspect`: offline legacy MOBI service.
+  See [MOBI formats, limits and examples](MOBI.md). Output creation is exclusive;
+  the `lossless:false` flag and warnings are part of successful conversion data.
