@@ -51,7 +51,8 @@ python3 -m venv .venv
 ```
 
 This harness mocks Neovim scheduling/UI, but also executes a real Lua →
-TypeScript → C export/inspect/read round trip. To test the actual editor:
+TypeScript → C export/inspect/read round trip, a Rust ASCII conversion, and an
+offline KoSync document checksum. To test the actual editor:
 
 ```sh
 nvim --headless -u NONE -l tests/headless.lua

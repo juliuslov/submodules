@@ -29,6 +29,9 @@ lua.globals().python_run_service = run_service
 lua.execute('vim = {system = python_run_service, schedule = function(fn) fn() end}')
 with tempfile.TemporaryDirectory() as directory:
     lua.globals().test_output = str(Path(directory) / 'Lua book.epub')
+    image = Path(directory) / 'Lua image.ppm'
+    image.write_bytes(b'P6\n2 1\n255\n\x00\x00\x00\xff\xff\xff')
+    lua.globals().test_image = str(image)
     lua.execute('''
       local epub = require('wizardo_services.epub')
       local exported, inspected, read = false, false, false
@@ -42,5 +45,13 @@ with tempfile.TemporaryDirectory() as directory:
         assert(not err, err); assert(data.text:find('Written from Lua.', 1, true)); read = true
       end)
       assert(exported and inspected and read)
+      local rendered, fingerprinted = false, false
+      require('wizardo_services.ascii').convert(test_image, {}, function(err, data)
+        assert(not err, err); assert(data.columns == 80 and data.rows == 20); rendered = true
+      end)
+      require('wizardo_services.kosync').document(test_output, 'binary', function(err, data)
+        assert(not err, err); assert(#data.document == 32); fingerprinted = true
+      end)
+      assert(rendered and fingerprinted)
     ''')
-print('PASS: real Lua -> TypeScript -> C export/inspect/read round trip')
+print('PASS: real Lua RPC for EPUB, Rust ASCII, and offline KoSync checksum')

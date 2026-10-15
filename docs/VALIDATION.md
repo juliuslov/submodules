@@ -5,7 +5,7 @@ Local checks on 2026-10-15:
 * `npm test`: builds C and bundles the pinned TypeScript ZIP source, checks
   service code with strict TypeScript, runs 11 C black-box tests and 35 Node
   service tests.
-* `.venv/bin/python tests/run_lua.py`: 16 Lua 5.1 unit tests plus a real
+* `.venv/bin/python tests/run_lua.py`: 17 Lua 5.1 unit tests plus a real
   Lua → TypeScript → C export/inspect/read round trip (Neovim primitives mocked).
 * Native sources and miniz compiled with `-Wall -Wextra -Wpedantic -Werror`
   and UndefinedBehaviorSanitizer. The 11 native tests pass with
@@ -43,7 +43,8 @@ record does not claim that remote CI has run or passed.
   deadlines for headers and streaming bodies, redirects, response limits,
   sanitized errors, environment-based RPC and offline diagnostics.
 * `npm test` currently passes 11 C + 11 Rust + 35 Node tests. The Lua suite
-  currently passes 16 tests plus the real cross-language EPUB round trip.
+  currently passes 17 tests plus real cross-language EPUB, Rust ASCII, and offline KoSync
+  checksum requests. Empty default Lua options are covered explicitly.
 * `npm audit --omit=dev` reports zero vulnerabilities at this check.
 
 KoSync tests use only ephemeral loopback servers. No real account was created
