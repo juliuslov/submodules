@@ -1,0 +1,37 @@
+{
+  "name": "wizardo-submodule-services",
+  "version": "1.0.0",
+  "description": "C, Lua, and TypeScript EPUB companion services for installer.nvim",
+  "directories": {
+    "doc": "docs",
+    "test": "tests"
+  },
+  "scripts": {
+    "build:types": "tsc -p scripts/tsconfig.vendor.json",
+    "build": "make native && npm run build:types && node scripts/build.mjs",
+    "typecheck": "npm run build:types && tsc --noEmit",
+    "test": "npm run build && npm run typecheck && make test-native && node --test tests/*.test.cjs",
+    "doctor": "node dist/cli.cjs doctor"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juliuslov/submodules.git"
+  },
+  "license": "UNLICENSED",
+  "bugs": {
+    "url": "https://github.com/juliuslov/submodules/issues"
+  },
+  "homepage": "https://github.com/juliuslov/submodules#readme",
+  "dependencies": {
+    "fast-xml-parser": "5.11.2"
+  },
+  "devDependencies": {
+    "@types/node": "22.20.5",
+    "esbuild": "0.28.2",
+    "typescript": "5.9.3"
+  },
+  "private": true,
+  "engines": {
+    "node": ">=22"
+  }
+}

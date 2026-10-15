@@ -1,0 +1,2 @@
+# Optional harness when Lua 5.1 is not installed. Uses the bundled lua51 runtime.
+lupa==2.8

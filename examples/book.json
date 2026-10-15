@@ -1,0 +1,9 @@
+{
+  "title": "A small book",
+  "author": "Your Name",
+  "language": "en",
+  "chapters": [
+    { "title": "Welcome", "text": "This EPUB was exported by the companion services.\n\nUnicode is supported: Xin chào." },
+    { "title": "Next steps", "text": "Read this book in Neovim or another EPUB reader." }
+  ]
+}

@@ -1,0 +1,9 @@
+[submodule "vendor/miniz"]
+	path = vendor/miniz
+	url = https://github.com/richgel999/miniz.git
+[submodule "vendor/fflate"]
+	path = vendor/fflate
+	url = https://github.com/101arrowz/fflate.git
+[submodule "vendor/dkjson"]
+	path = vendor/dkjson
+	url = https://github.com/LuaDist/dkjson.git

@@ -1,0 +1,7 @@
+.research/
+node_modules/
+dist/
+build/
+__pycache__/
+.venv/
+.ci/
