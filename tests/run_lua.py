@@ -13,6 +13,11 @@ lua = LuaRuntime(unpack_returned_tuples=True)
 lua.execute("package.path = ... .. '/lua/?.lua;' .. ... .. '/lua/?/init.lua;' .. package.path", str(ROOT), str(ROOT))
 lua.execute((ROOT / 'tests/services_test.lua').read_text())
 
+# The reader suite has a strict, isolated editor model for layout and async races.
+reader_lua = LuaRuntime(unpack_returned_tuples=True)
+reader_lua.execute("package.path = ... .. '/lua/?.lua;' .. ... .. '/lua/?/init.lua;' .. package.path", str(ROOT), str(ROOT))
+reader_lua.execute((ROOT / 'tests/reader_test.lua').read_text())
+
 # Use a fresh runtime, with the process primitive implemented by Python subprocess.
 lua = LuaRuntime(unpack_returned_tuples=True)
 lua.execute("package.path = ... .. '/lua/?.lua;' .. ... .. '/lua/?/init.lua;' .. package.path", str(ROOT), str(ROOT))

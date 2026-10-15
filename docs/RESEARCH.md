@@ -33,7 +33,7 @@ license/API, and rerunning tests. No branch-tracking updates run at build time.
   DTD/entity declarations are refused before parsing.
 * [Neovim command API](https://github.com/neovim/neovim/blob/v0.11.5/runtime/doc/api.txt):
   reviewed user-command arguments and async subprocess conventions. A real
-  headless test is provided for CI. Local release download was blocked by the
+  headless test is provided for local execution. Local release download was blocked by the
   sandbox's outbound-host allowlist, so that test was not run in this sandbox.
 
 ## Image service (2026-10-15)
@@ -67,3 +67,18 @@ Reviewed the real KOReader client and server before implementing the companion:
 
 No KOReader or server source is vendored or copied into the client. KoSync is a
 protocol implementation, not an added server dependency or a live service test.
+
+
+## Ghost-style EPUB UI (2026-10-15)
+
+* [Ghost/Casper editorial stylesheet](https://github.com/TryGhost/Casper/blob/09268ec980da2f7d23d1a258a88e7fbecb37850e/assets/css/screen.css):
+  reviewed its centered reading measure, layout breakpoints, quiet dark palette,
+  metadata hierarchy, and brand accent. This implementation is an original
+  native terminal UI inspired by those principles, not copied CSS or Ghost code.
+* [Neovim window API](https://github.com/neovim/neovim/blob/v0.11.5/runtime/doc/api.txt):
+  editor-relative floating windows, per-window highlight namespaces, buffer-local
+  mappings, and cleanup through resize/window/buffer autocmds. No editor-global
+  font, colorscheme, mouse, or layout setting is changed.
+
+The GitHub Actions workflow has been removed at the user's request. Tests and
+manual headless instructions remain; no remote CI execution is claimed.

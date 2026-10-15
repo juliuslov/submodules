@@ -58,7 +58,8 @@ offline KoSync document checksum. To test the actual editor:
 nvim --headless -u NONE -l tests/headless.lua
 ```
 
-CI runs both suites and the real headless test with Neovim 0.11.5.
+There are no GitHub Actions workflows. Run these checks locally; the actual
+headless UI test requires an installed Neovim binary.
 
 ## Command-line services
 
@@ -104,7 +105,8 @@ require('wizardo_services').register_commands() -- needed if adding rtp after st
 
 | Command | Action |
 | --- | --- |
-| `:WizEpubOpen /path/book.epub` | Pick a spine chapter and read plain text in a scratch buffer |
+| `:WizEpubOpen /path/book.epub` | Open the Ghost-inspired responsive reader with chapter navigation |
+| `:WizEpubClose` | Close the reader and restore your previous window |
 | `:WizEpubInspect /path/book.epub` | Show metadata and spine as JSON |
 | `:WizEpubExport /path/new.epub` | Export the current buffer as one text chapter |
 | `:WizLibrary /path/to/books` | Show a nonrecursive local EPUB inventory |
@@ -196,3 +198,16 @@ Supports explicit registration, authentication, progress pull and push, and both
 KOReader checksum modes. HTTPS by default; no automatic sync or credential
 storage. See [KoSync configuration and examples](docs/KOSYNC.md). KOReader
 positions are opaque page/XPointer strings, **not EPUB chapter indices**.
+
+
+## Ghost-style EPUB reading UI
+
+`:WizEpubOpen /books/book.epub` now opens a native reading workspace with a
+contents sidebar, centered prose, chapter navigation, estimated reading time,
+and reader-only light/dark palettes. Below 90 columns it becomes a compact
+single-pane layout with a chapter drawer and shorter, clickable controls.
+
+Use `n`/`p` for chapters, `t` for contents, `d` for theme, and `q` to close.
+Configure `reader = { theme = 'auto' }` in `setup`. This is a mobile-terminal
+layout, not a separate phone app. See [reader controls and limits](docs/READER.md).
+No GitHub workflow is included; tests are run locally.

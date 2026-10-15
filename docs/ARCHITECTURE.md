@@ -56,3 +56,19 @@ redistributing it. The four upstream libraries retain their own MIT licenses.
 
 Tests for KoSync bind ephemeral loopback servers; they do not use public
 credentials or public services. Rust tests run through `make test-ascii`.
+
+
+## Native EPUB reading workspace
+
+`lua/wizardo_services/reader/` separates terminal geometry, UTF-8 wrapping,
+window-scoped theme definitions and the asynchronous reader state machine.
+The generic diagnostics/ASCII `ui.show` API stays separate. `ui.open` delegates
+to the reader; no browser dependencies or mobile framework are introduced.
+
+One reader session owns all its buffers/windows/autocmds, restores the original
+window on close and invalidates pending callbacks with request epochs. Narrow
+terminals swap the reading pane for a chapter drawer. Reflow stores approximate
+per-chapter position, not persistent bookmarks or KOReader XPointers.
+
+There are no GitHub workflow files. Validation commands and editor-model tests
+are local; real Neovim integration is available in `tests/headless.lua`.

@@ -18,7 +18,7 @@ end
 local ok, err = pcall(function()
   local epub = require('wizardo_services.epub')
   await(function(cb) epub.export({ title = 'Neovim book', author = 'Tester', language = 'en',
-    chapters = { { title = 'Welcome', text = 'Hello from Neovim.' } } }, output, cb) end)
+    chapters = { { title = 'Welcome', text = 'Hello from Neovim.' }, { title = 'Next chapter', text = 'A second chapter for reader navigation.' } } }, output, cb) end)
   local info = await(function(cb) epub.inspect(output, cb) end)
   assert(info.title == 'Neovim book')
   local content = await(function(cb) epub.read(output, 0, cb) end)
@@ -35,6 +35,30 @@ local ok, err = pcall(function()
   local fingerprint = await(function(cb) require('wizardo_services.kosync').document(output, 'binary', cb) end)
   assert(#fingerprint.document == 32 and fingerprint.document:match('^[a-f0-9]+$'))
   assert(vim.fn.exists(':WizKoSyncPull') == 2)
+  local Reader = require('wizardo_services.reader')
+  local columns, lines, origin = vim.o.columns, vim.o.lines, vim.api.nvim_get_current_win()
+  vim.o.columns, vim.o.lines = 140, 42
+  local reader = Reader.open(output)
+  assert(vim.wait(60000, function() return not reader.busy end, 10), 'reader load timed out')
+  assert(not reader.error, reader.error)
+  assert(reader.info.title == 'Neovim book' and not reader.geometry.compact)
+  assert(vim.api.nvim_win_is_valid(reader.panes.toc.win))
+  local background = vim.o.background
+  reader:toggle_theme()
+  assert(vim.o.background == background, 'reader changed the global colorscheme')
+  vim.o.columns, vim.o.lines = 40, 24
+  vim.api.nvim_exec_autocmds('VimResized', {})
+  assert(reader.geometry.compact and vim.api.nvim_win_get_width(reader.panes.body.win) == 40)
+  reader:contents()
+  assert(reader.drawer and vim.api.nvim_get_current_win() == reader.panes.toc.win)
+  reader:jump(1)
+  assert(vim.wait(60000, function() return not reader.busy end, 10))
+  assert(not reader.error and reader.text:find('A second chapter', 1, true))
+  local body = reader.panes.body.buf
+  reader:close()
+  assert(Reader.current() == nil and not vim.api.nvim_buf_is_valid(body))
+  assert(vim.api.nvim_get_current_win() == origin)
+  vim.o.columns, vim.o.lines = columns, lines
 end)
 vim.fn.delete(directory, 'rf')
 if not ok then io.stderr:write(tostring(err) .. '\n'); vim.cmd('cquit 1') end

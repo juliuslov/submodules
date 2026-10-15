@@ -16,23 +16,6 @@ function M.show(title, text, filetype)
   return buf
 end
 function M.open(path)
-  local Epub = require('wizardo_services.epub')
-  Epub.inspect(path, function(err, info)
-    if err then M.error(err); return end
-    local choices = {}
-    for i, chapter in ipairs(info.chapters) do
-      choices[#choices + 1] = { index = i - 1, label = chapter.href }
-    end
-    vim.ui.select(choices, {
-      prompt = info.title,
-      format_item = function(item) return item.label end,
-    }, function(choice)
-      if not choice then return end
-      Epub.read(path, choice.index, function(read_err, data)
-        if read_err then M.error(read_err); return end
-        M.show(info.title, data.text)
-      end)
-    end)
-  end)
+  return require('wizardo_services.reader').open(path)
 end
 return M

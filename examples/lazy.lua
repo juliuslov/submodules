@@ -7,6 +7,6 @@ return {
   dependencies = { 'getwizardo/installer.nvim' },
   build = 'git submodule update --init --recursive && npm ci && npm run build',
   config = function()
-    require('wizardo_services').setup({ node = 'node' })
+    require('wizardo_services').setup({ node = 'node', reader = { theme = 'auto' } })
   end,
 }

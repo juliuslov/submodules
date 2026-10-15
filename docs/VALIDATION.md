@@ -29,8 +29,8 @@ vendored miniz submodule.
 **Not locally verified:** real Neovim headless integration (no installed Neovim;
 release assets blocked by the sandbox host allowlist), EPUBCheck conformance
 (no Java runtime installed), macOS, or older Neovim versions using upstream's
-fallback. CI is configured to run `tests/headless.lua` on Neovim 0.11.5; this
-record does not claim that remote CI has run or passed.
+fallback. Run `tests/headless.lua` manually with Neovim 0.10+; no GitHub workflow is
+included and no remote test execution is claimed.
 
 
 ## Rust ASCII and KoSync additions
@@ -49,5 +49,21 @@ record does not claim that remote CI has run or passed.
 
 KoSync tests use only ephemeral loopback servers. No real account was created
 and no public KoSync request was made. Public service access is outside this
-sandbox's host allowlist. The expanded headless Neovim test is configured in
-CI but was not run locally because Neovim is not installed here.
+sandbox's host allowlist. The expanded headless Neovim test is available for local execution but was not
+run in this sandbox because Neovim is not installed here.
+
+
+## Responsive EPUB reader
+
+* 21 additional Lua reader tests pass against a strict Neovim API model.
+  They cover wide/compact/tiny layouts, UTF-8 cell wrapping, local highlight
+  namespaces, theme changes, sidebar/drawer navigation, mouse actions, chapter
+  bounds, resize/position handling, stale async responses, retry, resource
+  cleanup, external close/wipe, and explicit interactive rendering limits.
+* The existing 17 Lua service tests and cross-language EPUB/ASCII/checksum
+  integration checks remain in the same harness.
+* `tests/headless.lua` now checks the real floating reader, a 40-column resize,
+  chapter changes, theme isolation, and cleanup. It has **not** been executed in
+  this sandbox; the editor model is not a claim of real terminal validation.
+* All GitHub workflow files were removed at the user's request. No CI job is
+  created by this change.
