@@ -7,3 +7,6 @@
 [submodule "vendor/dkjson"]
 	path = vendor/dkjson
 	url = https://github.com/LuaDist/dkjson.git
+[submodule "vendor/stb"]
+	path = vendor/stb
+	url = https://github.com/nothings/stb.git

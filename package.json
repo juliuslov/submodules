@@ -8,10 +8,11 @@
   },
   "scripts": {
     "build:types": "tsc -p scripts/tsconfig.vendor.json",
-    "build": "make native && npm run build:types && node scripts/build.mjs",
+    "build": "make native ascii && npm run build:types && node scripts/build.mjs",
     "typecheck": "npm run build:types && tsc --noEmit",
-    "test": "npm run build && npm run typecheck && make test-native && node --test tests/*.test.cjs",
-    "doctor": "node dist/cli.cjs doctor"
+    "test": "npm run build && npm run typecheck && make test-native test-ascii && node --test tests/*.test.cjs",
+    "doctor": "node dist/cli.cjs doctor",
+    "build:ascii": "make ascii"
   },
   "repository": {
     "type": "git",

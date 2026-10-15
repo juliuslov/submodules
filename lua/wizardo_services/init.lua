@@ -19,6 +19,7 @@ function M.register_commands()
       UI.show(title, Json.encode(data), 'json')
     end
   end
+  register('WizAscii', function(cmd) require('wizardo_services.ascii').open(cmd.args) end, { nargs = 1, complete = 'file', desc = 'Convert image to ASCII in a scratch buffer' })
   register('WizEpubOpen', function(cmd) UI.open(cmd.args) end, { nargs = 1, complete = 'file', desc = 'Choose and read an EPUB chapter' })
   register('WizEpubInspect', function(cmd)
     require('wizardo_services.epub').inspect(cmd.args, show('EPUB metadata'))

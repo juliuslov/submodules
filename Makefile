@@ -16,3 +16,21 @@ test-native: native
 	python3 -m unittest discover -s tests -p 'test_archive.py' -v
 clean:
 	rm -rf build dist
+
+# No crates.io dependencies: Rust std + a small shim around pinned stb_image.
+RUSTC ?= rustc
+AR ?= ar
+ASCII_RS = services/ascii/src/main.rs services/ascii/src/image.rs services/ascii/src/render.rs
+.PHONY: ascii test-ascii
+ascii: build/wiz-ascii
+build/image_decode.o: services/ascii/native/decode.c vendor/stb/stb_image.h
+	mkdir -p build
+	$(CC) -std=c99 -O2 -Ivendor/stb -c $< -o $@
+build/libwiz_image.a: build/image_decode.o
+	$(AR) rcs $@ $<
+build/wiz-ascii: $(ASCII_RS) build/libwiz_image.a
+	$(RUSTC) --edition=2021 -D warnings -O services/ascii/src/main.rs -L native=build -l static=wiz_image -l m -o $@
+build/wiz-ascii-tests: $(ASCII_RS) build/libwiz_image.a
+	$(RUSTC) --edition=2021 -D warnings --test services/ascii/src/main.rs -L native=build -l static=wiz_image -l m -o $@
+test-ascii: ascii build/wiz-ascii-tests
+	build/wiz-ascii-tests

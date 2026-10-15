@@ -4,3 +4,6 @@ export { scanLibrary } from './library';
 export { inspectArchive } from './archive';
 export { doctor } from './doctor';
 export type * from './types';
+
+export { imageToAscii } from '../../ascii/bridge';
+export type { AsciiOptions } from '../../ascii/bridge';

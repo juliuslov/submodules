@@ -1,7 +1,8 @@
+import { imageToAscii, type AsciiOptions } from '../../ascii/bridge';
 import { boundedRead } from './archive';
 import { inspectBook, readChapter, createBook, scanLibrary, inspectArchive, doctor } from './index';
 import type { BookInput } from './types';
-interface Request { action: string; path?: string; index?: number; input?: BookInput; output?: string; query?: string }
+interface Request { action: string; path?: string; index?: number; input?: BookInput; output?: string; query?: string; options?: AsciiOptions }
 function path(value: unknown): string {
   if (typeof value !== 'string' || !value || value.includes('\0')) throw new Error('a nonempty path is required');
   return value;
@@ -20,10 +21,12 @@ async function main(): Promise<void> {
   let req: Request;
   if (action === 'rpc') req = JSON.parse(await stdin());
   else if (action === 'create') req = { action, input: JSON.parse(boundedRead(path(file), 12 * 1024 * 1024).toString('utf8')), output: argument };
+  else if (action === 'ascii') req = { action, path: file, options: argument === undefined ? {} : { width: Number(argument) } };
   else req = { action, path: file, index: argument === undefined ? 0 : Number(argument), query: argument };
   if (!req || typeof req !== 'object') throw new Error('request object required');
   let data: unknown;
   switch (req.action) {
+    case 'ascii': data = await imageToAscii(path(req.path), req.options ?? {}); break;
     case 'inspect': data = inspectBook(path(req.path)); break;
     case 'read': data = readChapter(path(req.path), req.index ?? 0); break;
     case 'create': data = createBook(req.input!, path(req.output)); break;

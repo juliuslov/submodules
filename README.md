@@ -12,7 +12,7 @@ commands or configuration keys are replaced.
 
 ## Build and test
 
-Requirements: Node **22+**, npm, a C99 compiler, Make, and Python 3 for native
+Requirements: Node **22+**, npm, a C99 compiler, Rust 1.70+ (`rustc`), `ar`, Make, and Python 3 for native
 tests. Target platforms: POSIX Linux/macOS. Neovim **0.10+** is recommended for
 the companion UI; `kaeru.process` also supplies an older-Neovim process fallback.
 No GUI, server, database, or network access is needed at runtime.
@@ -33,6 +33,7 @@ The build writes ignored `build/` and `dist/` directories, not library sources.
 | --- | --- | --- |
 | `vendor/miniz` | C | ZIP directory, decompression and CRC integrity checks |
 | `vendor/fflate` | TypeScript | EPUB ZIP read/write |
+| `vendor/stb` | Rust via C shim | PNG/JPEG/BMP/PNM decoding for ASCII |
 | `vendor/dkjson` | Lua | JSON fallback outside Neovim / without `vim.json` |
 
 See [research sources and pins](docs/RESEARCH.md). Keep upstream licenses in the
@@ -167,3 +168,15 @@ standalone `vim.system` bridge has a 60-second deadline. When using upstream
   but hostile files should still be processed in an OS sandbox.
 
 See [service protocol](docs/PROTOCOL.md) and [architecture](docs/ARCHITECTURE.md).
+
+
+## Image to ASCII (Rust)
+
+```sh
+make ascii test-ascii
+build/wiz-ascii photo.png --width 100
+node dist/cli.cjs ascii photo.png 100
+```
+
+Neovim: `:WizAscii /path/photo.png`. See [image service details](docs/ASCII.md)
+for transparency, inversion, custom ramps, dimensions, and the Lua/RPC APIs.

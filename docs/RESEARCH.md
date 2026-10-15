@@ -35,3 +35,11 @@ license/API, and rerunning tests. No branch-tracking updates run at build time.
   reviewed user-command arguments and async subprocess conventions. A real
   headless test is provided for CI. Local release download was blocked by the
   sandbox's outbound-host allowlist, so that test was not run in this sandbox.
+
+## Image service (2026-10-15)
+
+* [stb_image source and API](https://github.com/nothings/stb/blob/2c980bb59875b0d32144a71867fbdebb2f77cd20/stb_image.h):
+  reviewed memory decoding, info probing, RGBA output, dimension limits and
+  allocator ownership. Pinned as `vendor/stb`. Formats are explicitly narrowed
+  at compile time; decoder allocations are freed by the same C allocator.
+  stb offers MIT or public-domain licensing; its LICENSE is retained.
