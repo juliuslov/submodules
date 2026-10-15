@@ -10,7 +10,8 @@ export function doctor(): object {
   let ascii: object;
   try { ascii = { available: true, version: execFileSync(asciiBinary(), ['--version'], { encoding: 'utf8', timeout: 5000 }).trim() }; }
   catch { ascii = { available: false, error: 'build the Rust ASCII service with make ascii' }; }
-  return { ascii, node: process.version, archive, submodules: {
+  const kosync = { available: true, configured: Boolean(process.env.KOSYNC_USERNAME && (Boolean(process.env.KOSYNC_PASSWORD) !== Boolean(process.env.KOSYNC_USERKEY))), onlineCheck: false };
+  return { ascii, kosync, node: process.version, archive, submodules: {
     stb: existsSync(join(ROOT, 'vendor/stb/stb_image.h')),
     miniz: existsSync(join(ROOT, 'vendor/miniz/miniz.h')),
     fflate: existsSync(join(ROOT, 'vendor/fflate/src/index.ts')),

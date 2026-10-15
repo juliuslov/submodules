@@ -7,3 +7,7 @@ export type * from './types';
 
 export { imageToAscii } from '../../ascii/bridge';
 export type { AsciiOptions } from '../../ascii/bridge';
+
+export { KoSyncClient, DEFAULT_SERVER } from '../../kosync/client';
+export { partialMd5, filenameMd5, documentChecksum } from '../../kosync/checksum';
+export type { KoSyncConfig, ProgressUpdate, ProgressState } from '../../kosync/types';

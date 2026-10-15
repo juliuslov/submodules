@@ -1,7 +1,7 @@
 {
   "name": "wizardo-submodule-services",
   "version": "1.0.0",
-  "description": "C, Lua, and TypeScript EPUB companion services for installer.nvim",
+  "description": "C Rust Lua and TypeScript EPUB ASCII and KoSync companion services for installer.nvim",
   "directories": {
     "doc": "docs",
     "test": "tests"

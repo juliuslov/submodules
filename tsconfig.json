@@ -13,6 +13,7 @@
   },
   "include": [
     "services/epub/src/**/*.ts",
-    "services/ascii/**/*.ts"
+    "services/ascii/**/*.ts",
+    "services/kosync/**/*.ts"
   ]
 }

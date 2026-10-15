@@ -1,6 +1,7 @@
 local M = {}
 function M.setup(opts)
   require('wizardo_services.client').configure(opts)
+  require('wizardo_services.kosync').configure(opts and opts.kosync)
 end
 function M.doctor(callback)
   return require('wizardo_services.client').request({ action = 'doctor' }, callback)
@@ -19,6 +20,18 @@ function M.register_commands()
       UI.show(title, Json.encode(data), 'json')
     end
   end
+  register('WizKoSyncAuth', function() require('wizardo_services.kosync').authorize(show('KoSync authorization')) end, { desc = 'Check KoSync credentials from environment' })
+  register('WizKoSyncRegister', function() require('wizardo_services.kosync').register(show('KoSync registration')) end, { desc = 'Explicitly create a KoSync account' })
+  register('WizKoSyncPull', function(cmd)
+    require('wizardo_services.kosync').pull(cmd.args, show('KoSync progress (opaque KOReader position)'))
+  end, { nargs = 1, desc = 'Fetch KoSync progress by document ID without changing local reading position' })
+  register('WizKoSyncPush', function(cmd)
+    if not cmd.bang then UI.error('Use :WizKoSyncPush! <progress.json> to explicitly overwrite remote progress'); return end
+    require('wizardo_services.kosync').push_file(cmd.args, show('KoSync push'))
+  end, { nargs = 1, bang = true, complete = 'file', desc = 'Explicitly push a progress JSON file to KoSync' })
+  register('WizKoSyncDocument', function(cmd)
+    require('wizardo_services.kosync').document(cmd.args, 'binary', show('KOReader partial document checksum'))
+  end, { nargs = 1, complete = 'file', desc = 'Compute KOReader-compatible document ID offline' })
   register('WizAscii', function(cmd) require('wizardo_services.ascii').open(cmd.args) end, { nargs = 1, complete = 'file', desc = 'Convert image to ASCII in a scratch buffer' })
   register('WizEpubOpen', function(cmd) UI.open(cmd.args) end, { nargs = 1, complete = 'file', desc = 'Choose and read an EPUB chapter' })
   register('WizEpubInspect', function(cmd)

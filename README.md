@@ -1,9 +1,9 @@
 # Wizardo companion submodules
 
-C, Lua, and TypeScript companion services for
+C, Rust, Lua, and TypeScript companion services for
 [`getwizardo/installer.nvim`](https://github.com/getwizardo/installer.nvim).
-Includes **EPUB reading and generation**, a native ZIP integrity/inventory
-service, local EPUB library search, and runtime diagnostics.
+Includes **EPUB reading and generation**, **image-to-ASCII in Rust**, a
+**KOReader KoSync client**, native ZIP checks, local library search, and diagnostics.
 
 This is a standalone companion in `juliuslov/submodules`, **not a patch already
 merged into installer.nvim**. Upstream calls its Lua modules `kaeru`. We use
@@ -15,7 +15,8 @@ commands or configuration keys are replaced.
 Requirements: Node **22+**, npm, a C99 compiler, Rust 1.70+ (`rustc`), `ar`, Make, and Python 3 for native
 tests. Target platforms: POSIX Linux/macOS. Neovim **0.10+** is recommended for
 the companion UI; `kaeru.process` also supplies an older-Neovim process fallback.
-No GUI, server, database, or network access is needed at runtime.
+Local EPUB/ASCII operations need no GUI, server, database, or network. KoSync
+uses the network only when you explicitly request registration, auth, pull, or push.
 
 ```sh
 cd /path/to/submodules
@@ -180,3 +181,17 @@ node dist/cli.cjs ascii photo.png 100
 
 Neovim: `:WizAscii /path/photo.png`. See [image service details](docs/ASCII.md)
 for transparency, inversion, custom ramps, dimensions, and the Lua/RPC APIs.
+
+
+## KoSync client
+
+```sh
+node dist/cli.cjs kosync-document /books/book.epub  # offline KOReader partial MD5
+node dist/cli.cjs kosync-authorize               # credentials from environment
+node dist/cli.cjs kosync-pull DOCUMENT_ID
+```
+
+Supports explicit registration, authentication, progress pull and push, and both
+KOReader checksum modes. HTTPS by default; no automatic sync or credential
+storage. See [KoSync configuration and examples](docs/KOSYNC.md). KOReader
+positions are opaque page/XPointer strings, **not EPUB chapter indices**.

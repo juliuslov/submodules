@@ -2,7 +2,8 @@
 
 Invoke `node dist/cli.cjs rpc`. Send one UTF-8 JSON object followed by EOF on
 stdin. Receive one compact JSON line on stdout (success) or stderr (failure).
-No HTTP listener, shell command strings, credentials, or ambient network needed.
+No HTTP listener or shell command strings. Local services need no credentials or
+network; explicit KoSync requests use credentials from the runtime environment.
 
 | action | request fields | success `data` |
 | --- | --- | --- |
@@ -51,3 +52,11 @@ Examples:
 `archive.available` and `submodules` flags. Error text is diagnostic, not a
 stable machine-readable error-code taxonomy. Protocol consumers should branch
 on exit status and `ok`. stdout contains no progress logs.
+
+
+## Additional services
+
+* `ascii`: `path` plus optional `options` → `text`, `columns`, `rows`.
+  See [ASCII protocol](ASCII.md).
+* `kosync`: nested `sync` request with `operation` (`authorize`, `register`,
+  `pull`, `push`, `document`). See [KoSync protocol](KOSYNC.md).

@@ -40,4 +40,19 @@ Neovim scratch buffers are nofile, nonmodifiable, and wiped when hidden.
 
 Original service code currently has no distribution license grant
 (`package.json` uses `UNLICENSED`); select an appropriate project license before
-redistributing it. The three upstream libraries retain their own MIT licenses.
+redistributing it. The four upstream libraries retain their own MIT licenses.
+
+
+## Additional service paths
+
+* `services/ascii/src/*.rs`: std-only Rust image renderer and CLI. The pinned
+  `stb_image` dependency is linked through `native/decode.c`; no crates.io
+  resolution is needed. TS launches the binary using argv, not a shell.
+* `services/kosync/*.ts`: protocol client, validated requests, bounded HTTPS
+  responses, KOReader-compatible document checksums, environment-based CLI
+  credential loading. There are no requests at module import or startup.
+* `lua/wizardo_services/{ascii,kosync}.lua`: companion APIs and commands.
+  KoSync pulls display opaque progress only. Push commands require `!`.
+
+Tests for KoSync bind ephemeral loopback servers; they do not use public
+credentials or public services. Rust tests run through `make test-ascii`.

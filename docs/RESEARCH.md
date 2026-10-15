@@ -23,7 +23,7 @@ sources, not claims that this companion has been merged into installer.nvim.
   Lua 5.1/5.2 JSON codec (MIT permission in `dkjson.lua`). Loaded directly from
   the pinned submodule as a plain-Lua fallback; Neovim uses `vim.json`.
 
-Gitlinks lock all three libraries. Initialize with `git submodule update --init
+Gitlinks lock all four libraries. Initialize with `git submodule update --init
 --recursive`. Updating a library requires changing its gitlink, reviewing its
 license/API, and rerunning tests. No branch-tracking updates run at build time.
 
@@ -43,3 +43,27 @@ license/API, and rerunning tests. No branch-tracking updates run at build time.
   allocator ownership. Pinned as `vendor/stb`. Formats are explicitly narrowed
   at compile time; decoder allocations are freed by the same C allocator.
   stb offers MIT or public-domain licensing; its LICENSE is retained.
+
+## KoSync protocol (2026-10-15)
+
+Reviewed the real KOReader client and server before implementing the companion:
+
+* [API spec](https://github.com/koreader/koreader/blob/892034c96ef6c4f8606809133d16bb604f8853c1/plugins/kosync.koplugin/api.json)
+  and [KOSyncClient.lua](https://github.com/koreader/koreader/blob/892034c96ef6c4f8606809133d16bb604f8853c1/plugins/kosync.koplugin/KOSyncClient.lua):
+  POST `/users/create`, GET `/users/auth`, PUT `/syncs/progress`, and
+  GET `/syncs/progress/:document`; `application/vnd.koreader.v1+json`,
+  `x-auth-user`, `x-auth-key`, required progress/device fields, and status codes.
+* [KOReader plugin](https://github.com/koreader/koreader/blob/892034c96ef6c4f8606809133d16bb604f8853c1/plugins/kosync.koplugin/main.lua):
+  registration/login use `md5(password)`, filename matching uses the basename's
+  MD5, binary matching uses cached `partial_md5_checksum`. Positions can be
+  page strings or XPointers, not this companion's chapter indices.
+* [util.partialMD5](https://github.com/koreader/koreader/blob/892034c96ef6c4f8606809133d16bb604f8853c1/frontend/util.lua):
+  samples 1 KiB at offset zero, then `1024 * 4^i` for i=0..10, stopping at EOF.
+  The zero offset comes from LuaJIT `lshift(1024, -2)`, whose shift count wraps.
+* [Server implementation](https://github.com/koreader/koreader-sync-server/blob/46ef6b84a3930b3f0265efac74899f2256c158f1/app/controllers/1/syncs_controller.lua):
+  stores the supplied password key, checks authentication headers, reports
+  empty progress as an empty table, assigns server timestamps, and restricts
+  retrievable document IDs to alphanumeric/underscore characters.
+
+No KOReader or server source is vendored or copied into the client. KoSync is a
+protocol implementation, not an added server dependency or a live service test.
