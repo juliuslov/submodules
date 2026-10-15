@@ -2,7 +2,7 @@
 import struct
 
 
-def make_mobi(raw=None, compression=1, encoding=65001, title='Fixture book', author='A reader', language='en'):
+def make_mobi(raw=None, compression=1, encoding=65001, title='Fixture book', author='A reader', language='en', encoded=None):
     codec = 'utf-8' if encoding == 65001 else 'cp1252'
     if raw is None:
         raw = '<html><body><h1>Opening</h1><p>Hello &amp; safe.</p></body></html>'.encode(codec)
@@ -29,7 +29,10 @@ def make_mobi(raw=None, compression=1, encoding=65001, title='Fixture book', aut
     records = [bytes(record0)]
     for offset in range(0, len(raw), 4096):
         chunk = raw[offset:offset+4096]
-        if compression == 2:
+        if encoded is not None:
+            assert count == 1
+            chunk = encoded
+        elif compression == 2:
             chunk = b''.join(bytes([len(chunk[i:i+8])]) + chunk[i:i+8] for i in range(0, len(chunk), 8))
         records.append(chunk)
     records.append(b'\xe9\x8e\r\n')

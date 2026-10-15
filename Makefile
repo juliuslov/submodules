@@ -55,7 +55,7 @@ build/libmobi-miniz.o: vendor/libmobi/src/miniz.c
 $(MOBI_LIB): $(LIBMOBI_SRC) $(wildcard vendor/libmobi/src/*.h) build/libmobi-miniz.o
 	mkdir -p build
 	$(CC) -std=c99 -D_POSIX_C_SOURCE=200809L -DUSE_MINIZ -DPACKAGE_VERSION='"git-9062742"' -fPIC $(CFLAGS) $(MOBI_SHARED) -Ivendor/libmobi/src $(LIBMOBI_SRC) build/libmobi-miniz.o -o $@
-build/wiz-mobi: services/mobi/native/main.c services/archive/src/json.c $(MOBI_LIB)
+build/wiz-mobi: services/mobi/native/main.c services/archive/src/json.c services/archive/include/archive_service.h $(MOBI_LIB)
 	$(CC) -std=c99 -D_POSIX_C_SOURCE=200809L $(CFLAGS) $(WARN) -Ivendor/libmobi/src -Iservices/archive/include services/mobi/native/main.c services/archive/src/json.c -Lbuild $(MOBI_RPATH) -lmobi -o $@
 .PHONY: test-mobi
 test-mobi: mobi

@@ -42,6 +42,7 @@ class TextBook(HTMLParser):
         self.title = ''
         self.parts = []
         self.chapters = []
+        self.total_bytes = 0
 
     def finish_chapter(self):
         text = re.sub(r' *\n *', '\n', re.sub(r'[ \t]+', ' ', ''.join(self.parts)))
@@ -51,6 +52,9 @@ class TextBook(HTMLParser):
             if len(title.encode('utf-8')) > 4096:
                 raise ValueError('MOBI chapter title exceeds 4096 bytes')
             encoded = text.encode('utf-8')
+            self.total_bytes += len(encoded)
+            if self.total_bytes > MAX_TEXT:
+                raise ValueError('decoded MOBI UTF-8 text exceeds 8 MiB')
             part = 1
             while encoded:
                 end = min(len(encoded), MAX_CHAPTER)
@@ -60,7 +64,8 @@ class TextBook(HTMLParser):
                 encoded = encoded[end:]
                 if chunk:
                     suffix = '' if part == 1 else ' (part ' + str(part) + ')'
-                    self.chapters.append({'title': title + suffix, 'text': chunk})
+                    part_title = title if not suffix else title.encode('utf-8')[:4096-len(suffix)].decode('utf-8', errors='ignore') + suffix
+                    self.chapters.append({'title': part_title, 'text': chunk})
                     if len(self.chapters) > 256:
                         raise ValueError('MOBI conversion exceeds 256 chapters')
                     part += 1

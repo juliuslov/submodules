@@ -5,6 +5,8 @@
 #include <string.h>
 #include <stdint.h>
 #include <sys/stat.h>
+#include <fcntl.h>
+#include <unistd.h>
 
 #define MAX_INPUT (64UL * 1024 * 1024)
 #define MAX_TEXT (8UL * 1024 * 1024)
@@ -36,7 +38,7 @@ static const char *preflight(FILE *file, size_t size) {
     if (be16(record + 12)) return "DRM/encrypted MOBI is unsupported";
     if (be32(record + 36) != 6 && be32(record + 36) != 7) return "only legacy MOBI 6/7 is supported; KF8/AZW3/KFX is unsupported";
     if (be16(record) != 1 && be16(record) != 2) return "only uncompressed or PalmDOC-compressed MOBI is supported";
-    if (!be32(record + 4) || be32(record + 4) > MAX_TEXT || !be16(record + 8) || be16(record + 8) >= count || be16(record + 10) > 4096) return "MOBI text/record limits exceeded";
+    if (!be32(record + 4) || be32(record + 4) > MAX_TEXT || !be16(record + 8) || be16(record + 8) >= count || !be16(record + 10) || be16(record + 10) > 4096) return "MOBI text/record limits exceeded";
     if (be32(record + 20) < 232 || be32(record + 20) > second - first - 16 || be32(record + 24) != 2) return "unsupported MOBI header or document type";
     if (be32(record + 28) != 65001 && be32(record + 28) != 1252) return "only UTF-8 and Windows-1252 MOBI text is supported";
     if (be32(record + 40) != UINT32_MAX || be32(record + 44) != UINT32_MAX) return "MOBI dictionaries are unsupported";
@@ -51,12 +53,16 @@ int main(int argc, char **argv) {
     const char *failure;
     char *text, *title, *author, *language;
     size_t length = MAX_TEXT, i = 0;
-    int ret = 0;
+    int ret = 0, fd;
     if (argc == 2 && !strcmp(argv[1], "--version")) { printf("wiz-mobi 1.0.0 / libmobi %s\n", mobi_version()); return 0; }
     if (argc != 3 || (strcmp(argv[1], "inspect") && strcmp(argv[1], "text"))) return error("usage: wiz-mobi inspect|text <file.mobi>");
-    if (stat(argv[2], &statbuf) || !S_ISREG(statbuf.st_mode) || statbuf.st_size < 0 || (uint64_t)statbuf.st_size > MAX_INPUT) return error("expected a regular MOBI file at most 64 MiB");
-    file = fopen(argv[2], "rb");
-    if (!file) return error("cannot open MOBI input");
+    fd = open(argv[2], O_RDONLY | O_NONBLOCK);
+    if (fd < 0) return error("cannot open MOBI input");
+    if (fstat(fd, &statbuf) || !S_ISREG(statbuf.st_mode) || statbuf.st_size < 0 || (uint64_t)statbuf.st_size > MAX_INPUT) {
+        close(fd); return error("expected a regular MOBI file at most 64 MiB");
+    }
+    file = fdopen(fd, "rb");
+    if (!file) { close(fd); return error("cannot open MOBI input stream"); }
     failure = preflight(file, (size_t)statbuf.st_size);
     if (failure) { fclose(file); return error(failure); }
     m = mobi_init();
@@ -73,6 +79,9 @@ int main(int argc, char **argv) {
     if (!text) { mobi_free(m); return error("out of memory"); }
     if (mobi_get_rawml(m, text, &length) != MOBI_SUCCESS || length != m->rh->text_length) {
         free(text); mobi_free(m); return error("invalid decompressed MOBI text length or compressed data");
+    }
+    if (length >= 4 && !memcmp(text, "%MOP", 4)) {
+        free(text); mobi_free(m); return error("print-replica MOBI is unsupported");
     }
     if (!strcmp(argv[1], "text")) {
         if (fwrite(text, 1, length, stdout) != length) ret = 1;

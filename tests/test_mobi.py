@@ -40,6 +40,33 @@ class MobiTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(json.loads(result.stdout)['data']['book']['chapters'][0]['text'], 'Hello & safe.')
 
+    def test_palmdoc_backreferences_and_space_pairs(self):
+        raw = b'<html><body><p>abcabcabc X</p></body></html>'
+        encoded = b'<html><body><p>abc' + bytes([0x80, 0x1b, ord('X') ^ 0x80]) + b'</p></body></html>'
+        data = make_mobi(raw, compression=2, encoded=encoded)
+        self.assertEqual(self.invoke(data, command='text').stdout, raw)
+        result = self.invoke(data, worker=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(json.loads(result.stdout)['data']['book']['chapters'][0]['text'], 'abcabcabc X')
+        self.assertNotEqual(self.invoke(make_mobi(b'aaa', compression=2, encoded=b'\x80\x08')).returncode, 0)
+
+    def test_version7_and_print_replica_rejection(self):
+        data = bytearray(make_mobi())
+        first, = struct.unpack_from('>I', data, 78)
+        struct.pack_into('>I', data, first+36, 7)
+        self.assertEqual(self.invoke(data, worker=True).returncode, 0)
+        for compression in (1, 2):
+            result = self.invoke(make_mobi(b'%MOP fake print replica', compression=compression))
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b'print-replica', result.stderr)
+
+    def test_fifo_rejected_without_blocking(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory) / 'pipe.mobi'
+            os.mkfifo(path)
+            result = subprocess.run([str(ROOT / 'build/wiz-mobi'), 'inspect', str(path)], capture_output=True, timeout=2)
+            self.assertNotEqual(result.returncode, 0)
+
     def test_windows1252(self):
         raw = '<html><body><h1>Café</h1><p>Crème brûlée.</p></body></html>'.encode('cp1252')
         result = self.invoke(make_mobi(raw, encoding=1252, title='Café'), worker=True)
@@ -90,11 +117,18 @@ class MobiTests(unittest.TestCase):
         spec.loader.exec_module(worker)
         parser = worker.TextBook()
         text = '你好' * 200000
-        parser.feed('<h1>Long</h1><p>' + text + '</p>')
+        parser.feed('<h1>' + '中' * 1365 + 'x</h1><p>' + text + '</p>')
         parser.finish_chapter()
         self.assertEqual(len(parser.chapters), 2)
+        self.assertTrue(all(len(chapter['title'].encode()) <= 4096 for chapter in parser.chapters))
         self.assertEqual(''.join(chapter['text'] for chapter in parser.chapters), text)
         self.assertTrue(all(len(chapter['text'].encode()) <= 1024*1024 for chapter in parser.chapters))
+
+    def test_transcoding_limit_is_checked_before_ipc(self):
+        raw = b'<p>' + b'\x80' * (3*1024*1024) + b'</p>'
+        result = self.invoke(make_mobi(raw, encoding=1252), worker=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b'UTF-8 text exceeds 8 MiB', result.stderr)
 
     def test_native_oversized_file(self):
         with tempfile.TemporaryDirectory() as directory:
