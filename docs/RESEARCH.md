@@ -82,3 +82,29 @@ protocol implementation, not an added server dependency or a live service test.
 
 The GitHub Actions workflow has been removed at the user's request. Tests and
 manual headless instructions remain; no remote CI execution is claimed.
+
+## MOBI converter (2026-10-16)
+
+Researched online via the GitHub API, then inspected the exact pinned sources:
+
+* [libmobi](https://github.com/bfabiszewski/libmobi/tree/906274205c11944b628da1c553b255acb1af7c55):
+  `src/mobi.h`, `read.c`, `util.c`, `meta.c`, `compression.c`, and upstream build
+  files document PDB tables, PalmDOC/MOBI headers, encoding, metadata, bounded
+  decompression and DRM detection. Pinned as `vendor/libmobi` (LGPL-3.0-or-later).
+  The companion builds a replaceable shared library with encryption disabled.
+* [KindleUnpack](https://github.com/kevinhendricks/KindleUnpack/tree/bf0ca6ece4e73494625e7950be3e259b6260774c):
+  README, `lib/mobi_header.py`, `mobi_sectioner.py`, and `mobi_uncompress.py`
+  confirm header offsets, EXTH metadata and text decoding. Pinned as
+  `vendor/kindleunpack` (GPL-3.0). Used as an independent decoder in a separate
+  Python subprocess. No upstream extraction routines write files.
+* [Calibre](https://github.com/kovidgoyal/calibre): researched as an alternative
+  for broader conversion support. It is not added as an unused heavyweight
+  submodule or assumed to be installed. Use such a tool for unsupported Kindle
+  variants or conversions requiring richer layout preservation.
+
+The implemented subset is unencrypted legacy MOBI6/7 (uncompressed/PalmDOC
+compression), with new exports targeting UTF-8 MOBI6. It explicitly rejects
+KF8/AZW3/KFX, hybrid files, HUFF/CDIC, print replicas and dictionaries. Conversion
+is text-focused, not lossless: no claim is made about preserving images, fonts,
+CSS, links, original navigation, or acceptance by Amazon delivery services.
+The two new libraries are NOT MIT; see docs/MOBI.md before redistribution.

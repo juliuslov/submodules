@@ -10,3 +10,9 @@
 [submodule "vendor/stb"]
 	path = vendor/stb
 	url = https://github.com/nothings/stb.git
+[submodule "vendor/libmobi"]
+	path = vendor/libmobi
+	url = https://github.com/bfabiszewski/libmobi.git
+[submodule "vendor/kindleunpack"]
+	path = vendor/kindleunpack
+	url = https://github.com/kevinhendricks/KindleUnpack.git
