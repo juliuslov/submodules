@@ -13,8 +13,9 @@ network; explicit KoSync requests use credentials from the runtime environment.
 | `scan` | directory `path`, optional `query` | books[{path,info}], errors[{path,error}] |
 | `archive` | `path` | native inventory: ok, totalBytes, entries[] |
 | `convert` / `mobi-convert` | input `path`, `output`; optional `conversion` {backend, timeoutMs} | path, bytes, from, to, backend, title, chapters, lossless:false, warnings[] |
-| `formats` | none | static native/Calibre capability catalog and unsupported formats |
+| `formats` | none | static native/libmobi/Calibre capability catalog and unsupported formats |
 | `mobi-inspect` | `path` | version, compression, encoding, textBytes, records, title, author, language |
+| `libmobi-inspect` | `path` | legacy metadata plus publisher, description, ISBN, dates, copyright, ASIN, hybrid/KF8 flags |
 | `doctor` | none | node version, archive/ASCII/MOBI runtime availability, source submodule presence |
 
 A chapter descriptor has `id`, archive-relative `href`, `mediaType`, and
@@ -70,7 +71,9 @@ on exit status and `ok`. stdout contains no progress logs.
   the `lossless:false` flag and warnings are part of successful conversion data.
 
 
-The default conversion backend is `native`. Explicit `calibre` permits extended
-MOBI/KF8 input and `.azw3` output, using an installed executable. Format catalogs
+The CLI/RPC default conversion backend is `native`. Explicit `libmobi` enables
+built-in KF8/HUFF/hybrid reconstruction without Calibre. Neovim open/convert
+commands choose libmobi. Explicit `calibre` also permits extended MOBI/KF8
+input and `.azw3` output, using an installed executable. Format catalogs
 are not runtime availability checks. See [Calibre behavior and safety](MOBI.md#optional-calibre-backend-broader-conversion).
 The Lua namespace is now `hikari`; old `wizardo_services` modules alias it.

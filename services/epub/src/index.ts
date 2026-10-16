@@ -17,3 +17,5 @@ export { createMobiBytes } from '../../mobi/writer';
 export type { MobiInfo, ConversionResult, ConversionOptions } from '../../mobi/convert';
 
 export { conversionFormats } from '../../mobi/formats';
+
+export { markupChapters as parseMobiMarkup } from '../../mobi/html-text';

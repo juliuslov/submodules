@@ -127,3 +127,54 @@ includes plugin loading and direct temporary-MOBI reading but was **not run**.
 Real Calibre, physical Kindle, Amazon delivery-service, EPUBCheck and macOS
 validation remain unperformed. No GitHub workflow was added. The model and fake
 engine tests are explicitly not presented as real-editor or device validation.
+
+## 2026-10-16: libmobi reconstruction, installer and startup workspace
+
+Latest verification supersedes the earlier suite counts above:
+
+| Suite | Passed |
+| --- | ---: |
+| Native archive C/Python | 11 |
+| Rust ASCII | 11 |
+| MOBI C/Python | 15 |
+| Node/TypeScript services, real libmobi samples and installer | 81 |
+| Lua service model | 19 |
+| Lua reader/workspace/startup model | 28 |
+| Lua hikari lifecycle/commands model | 15 |
+| **Total** | **180** |
+
+One additional real-Calibre integration test was skipped. The real
+Lua → TypeScript → C/Rust/Python RPC smoke also passed.
+
+Commands actually run:
+
+```sh
+make clean
+RUSTC=/path/to/rustc ./install.sh --offline --test
+npm audit --omit=dev
+git diff --check
+```
+
+The same installer was also run in normal online mode with `--test`; clean
+native compilation produced no warnings. TypeScript strict checking passed and
+npm reported zero vulnerabilities. The optional Lupa test runtime was installed
+in `.venv`; Rust 1.85.0 was supplied through the RUSTC override.
+
+Separately, libmobi core and the native adapter were rebuilt with
+`-fsanitize=undefined -fno-sanitize-recover=all`; all 15 C/Python MOBI tests and
+15 Node libmobi tests passed with `UBSAN_OPTIONS=halt_on_error=1`. Normal optimized
+binaries were restored by the final clean installer build.
+
+Real upstream samples cover CP1252, NCX/KF8, hybrid HUFF/CDIC, Unicode
+uncompressed, multimedia and obfuscated fonts. Tests exercise the actual
+reconstruction engine and upstream EPUB generator/loaded-book metadata editor,
+not a fake KF8 executable. New tests also prove TypeScript imports do not need
+the Python export validator, reject unsafe DTD/nesting/size inputs, and split
+large Unicode chapters safely.
+
+The 28 reader/workspace tests use a strict editor model, covering high contrast,
+identical-write suppression, opt-in software redraw, failure cleanup, narrow
+geometry, startup eligibility and window/buffer lifecycle. The real Neovim
+headless script was expanded, but **not run**: Neovim is unavailable in this
+sandbox. Real Calibre, physical e-ink/Kindle, terminal visual validation,
+EPUBCheck and macOS were not verified. No GitHub workflow was added.

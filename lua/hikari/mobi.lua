@@ -9,4 +9,7 @@ end
 function M.inspect(path, callback)
   return Client.request({ action = 'mobi-inspect', path = path }, callback)
 end
+function M.inspect_all(path, callback)
+  return Client.request({ action = 'libmobi-inspect', path = path }, callback)
+end
 return M

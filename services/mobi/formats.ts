@@ -27,6 +27,7 @@ export function conversionFormats(): object {
   return {
     fidelity: 'text-focused, not lossless',
     native: { inputs: ['EPUB', 'DRM-free MOBI6/7: uncompressed or PalmDOC'], outputs: ['EPUB', 'MOBI6'] },
+    libmobi: { inputs: ['EPUB', 'DRM-free MOBI6/7', 'KF8/AZW3', 'hybrid MOBI/KF8', 'HUFF/CDIC'], outputs: ['EPUB', 'MOBI6'], requires: 'built-in libmobi reconstruction; TypeScript text conversion' },
     calibre: { requires: 'separately installed ebook-convert; explicit opt-in',
       inputs: ['EPUB', 'DRM-free MOBI including HUFF/CDIC', 'KF8/AZW3', 'hybrid MOBI/KF8'], outputs: ['EPUB', 'MOBI6', 'AZW3'] },
     unsupported: ['DRM/encrypted books', 'KFX', 'Topaz', 'print replicas', 'dictionaries', 'non-MOBI PRC/PDB'],

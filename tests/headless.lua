@@ -55,6 +55,9 @@ local ok, err = pcall(function()
   assert(vim.api.nvim_win_is_valid(reader.panes.toc.win))
   local background = vim.o.background
   reader:toggle_theme()
+  Reader.set_mode('high')
+  assert(vim.api.nvim_get_hl(reader.namespace, { name = 'HikariGhostText', link = false }).fg == 0xffffff)
+  Reader.set_mode('normal')
   assert(vim.o.background == background, 'reader changed the global colorscheme')
   vim.o.columns, vim.o.lines = 40, 24
   vim.api.nvim_exec_autocmds('VimResized', {})
@@ -77,6 +80,13 @@ local ok, err = pcall(function()
   local temporary_epub = converted_reader.path
   service.close()
   assert(vim.fn.filereadable(temporary_epub) == 0)
+  assert(not require('hikari.workspace.startup').eligible(), 'headless startup must not open a workspace')
+  local workspace = service.workspace()
+  assert(vim.bo[workspace.buf].buftype == 'nofile' and not vim.bo[workspace.buf].modifiable)
+  vim.cmd('HikariRefresh')
+  service.close()
+  assert(not require('hikari.workspace').current())
+  assert(not vim.api.nvim_buf_is_valid(workspace.buf))
   vim.o.columns, vim.o.lines = columns, lines
 end)
 vim.fn.delete(directory, 'rf')

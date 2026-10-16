@@ -5,8 +5,10 @@ return {
   name = 'hikari',
   main = 'hikari',
   branch = 'arena/fc59f9a1-submodules',
-  cmd = { 'Hikari', 'HikariOpen', 'HikariClose', 'HikariConvert', 'HikariInspect',
-    'HikariDoctor', 'HikariFormats', 'HikariLibrary', 'HikariAscii', 'HikariEpubExport' },
-  build = 'git submodule update --init --recursive && npm ci && npm run build',
-  opts = { node = 'node', reader = { theme = 'auto' } },
+  lazy = false, -- required to show the workspace at Neovim startup
+  build = './install.sh', -- explicit manager build step; never runs at startup
+  opts = {
+    node = 'node', startup = { enabled = true },
+    reader = { theme = 'auto', mode = 'normal', anti_ghosting = { enabled = true, full_redraw_every = 0 } },
+  },
 }

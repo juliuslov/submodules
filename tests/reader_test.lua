@@ -115,7 +115,7 @@ end)
 test('desktop reader has sidebar, bounded text and local Ghost theme', function()
   local reader = loaded()
   assert(not reader.geometry.compact and windows[reader.panes.toc.win])
-  assert(content(reader.panes.header):find('GHOST / READER', 1, true))
+  assert(content(reader.panes.header):find('HIKARI / NORMAL READER', 1, true))
   assert(content(reader.panes.body):find('First chapter', 1, true))
   assert(vim.bo[reader.panes.body.buf].buftype == 'nofile' and not vim.bo[reader.panes.body.buf].modifiable)
   assert(current == reader.panes.body.win and highlights.HikariGhostAccent.fg == '#48d6ad')
@@ -249,4 +249,74 @@ test('external buffer wipe closes the reader safely', function()
   emit('BufWipeout', { buf = reader.panes.body.buf })
   assert(reader.closed and current == 1)
 end)
+test('high mode uses white-on-black local highlights without changing global background', function()
+  local reader = loaded()
+  Reader.set_mode('high')
+  assert(reader.mode == 'high' and highlights.HikariGhostText.fg == '#ffffff' and highlights.HikariGhostText.bg == '#000000')
+  assert(highlights.HikariGhostMuted.ctermfg == 15 and vim.o.background == 'dark')
+  Reader.set_mode('normal'); assert(highlights.HikariGhostAccent.fg == '#48d6ad')
+end)
+test('anti-ghosting skips identical buffer and geometry writes', function()
+  local reader = loaded()
+  local writes, configs = 0, 0
+  local set_lines, set_config = api.nvim_buf_set_lines, api.nvim_win_set_config
+  api.nvim_buf_set_lines = function(...) writes = writes + 1; return set_lines(...) end
+  api.nvim_win_set_config = function(...) configs = configs + 1; return set_config(...) end
+  reader:_render(); reader:_render()
+  api.nvim_buf_set_lines, api.nvim_win_set_config = set_lines, set_config
+  assert(writes == 0 and configs == 0)
+end)
+test('software refresh interval is opt-in and explicit refresh invalidates caches', function()
+  reset(); Reader.configure({ anti_ghosting = { full_redraw_every = 2 } })
+  local redraws = 0; vim.cmd = function(command) assert(command == 'redraw!'); redraws = redraws + 1 end
+  local reader = Reader.open('/book.epub')
+  reader:_render(); assert(redraws >= 1)
+  local before = redraws; reader:refresh(); assert(redraws > before)
+  assert(not pcall(Reader.configure, { anti_ghosting = { full_redraw_every = -1 } }))
+  assert(not pcall(Reader.configure, { mode = 'ultra' }))
+  vim.cmd = nil; reader:close(); Reader.configure()
+end)
+test('render failure closes all reader panes instead of leaving stale windows', function()
+  local reader = loaded(); local original = api.nvim_win_set_config
+  api.nvim_win_set_config = function() error('editor layout failure') end
+  vim.o.columns = 100
+  assert(not pcall(reader._render, reader)); assert(reader.closed and not Reader.current())
+  api.nvim_win_set_config = original
+end)
+test('workspace opens idempotently and fits desktop, phone and minimal terminals', function()
+  local Workspace = require('hikari.workspace')
+  for _, size in ipairs({ { 140, 42 }, { 40, 18 }, { 1, 4 } }) do
+    reset(size[1], size[2])
+    local state = Workspace.open()
+    assert(Workspace.open() == state and vim.bo[state.buf].buftype == 'nofile' and not vim.bo[state.buf].modifiable)
+    for _, line in ipairs(buffers[state.buf].lines) do assert(width(line) <= windows[state.win].config.width) end
+    maps[state.buf].q(); assert(not Workspace.current() and current == 1)
+  end
+end)
+test('closing workspace externally deletes its owned buffers and hooks', function()
+  reset(); local Workspace = require('hikari.workspace'); local state = Workspace.open()
+  api.nvim_win_close(state.win)
+  assert(not Workspace.current() and not buffers[state.buf] and not groups[state.group])
+end)
+test('startup workspace never replaces files, modified/nonempty buffers or headless sessions', function()
+  reset()
+  local Startup = require('hikari.workspace.startup')
+  local ui, argc, name = { {} }, 0, ''
+  api.nvim_list_uis = function() return ui end
+  api.nvim_get_current_buf = function() return windows[current].buf end
+  api.nvim_buf_get_name = function() return name end
+  api.nvim_buf_get_lines = function(buf) return buffers[buf].lines end
+  api.nvim_buf_line_count = function(buf) return #buffers[buf].lines end
+  vim.fn.argc = function() return argc end
+  vim.bo[1].buftype = ''; buffers[1].lines = { '' }
+  assert(Startup.eligible())
+  ui = {}; assert(not Startup.eligible()); ui = { {} }
+  argc = 1; assert(not Startup.eligible()); argc = 0
+  name = '/notes'; assert(not Startup.eligible()); name = ''
+  vim.bo[1].modified = true; assert(not Startup.eligible()); vim.bo[1].modified = false
+  buffers[1].lines = { 'session content' }; assert(not Startup.eligible()); buffers[1].lines = { '' }
+  Startup.configure(false); assert(not Startup.eligible()); Startup.configure(true)
+  Startup.launch(); assert(require('hikari.workspace').current()); require('hikari.workspace').close()
+end)
+
 print('1..' .. count)

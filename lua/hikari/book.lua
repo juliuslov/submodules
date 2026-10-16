@@ -15,7 +15,10 @@ function M.close()
 end
 function M.open(path, opts)
   assert(type(path) == 'string' and path ~= '' and not path:find('%z'), 'book path required')
-  opts = opts or {}
+  local options = {}
+  for key, value in pairs(opts or {}) do options[key] = value end
+  options.backend = options.backend or 'libmobi'
+  opts = options
   assert(type(opts) == 'table', 'open options must be a table')
   M.close()
   local extension = path:lower():match('%.([%w]+)$')

@@ -142,4 +142,11 @@ test('Hikari offers subcommand and file completion', function()
   assert(#found == 1 and found[1] == 'convert')
   assert(commands.Hikari.opts.complete('b', 'Hikari open b')[1] == 'book.epub')
 end)
+test('bare Hikari opens the workspace without invoking a converter', function()
+  local previous, opened, requests = Hikari.workspace, false, #conversions
+  Hikari.workspace = function() opened = true end
+  commands.Hikari.fn({ fargs = {}, bang = false })
+  Hikari.workspace = previous
+  assert(opened and #conversions == requests)
+end)
 print('1..' .. count)

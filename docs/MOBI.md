@@ -1,18 +1,19 @@
 # hikari: EPUB, MOBI and optional KF8/AZW3 conversion
 
 hikari is a standalone Neovim plugin (`require('hikari')`, `:HikariConvert`).
-The repository URL remains juliuslov/submodules. The native/default engine is
-described below; **extended formats require explicit `{ backend: 'calibre' }`**,
-`:HikariConvert!`, or the CLI's final `calibre` argument. See the extended engine
-section at the end. No fallback or automatic Calibre install is performed.
-
+The repository URL remains juliuslov/submodules. Neovim open/convert commands
+select the built-in `libmobi` backend; CLI/API callers retain `native` as their
+legacy-compatible default. Select `{ backend: 'libmobi' }`, the CLI's final
+`libmobi` argument, or RPC `conversion.backend` for KF8/HUFF/hybrid reconstruction.
+Calibre remains explicit via `{ backend: 'calibre' }` or a command bang.
+There is no silent fallback or automatic Calibre install.
 The companion now converts in **both directions**, offline. Two actual pinned
 Git submodules perform meaningful work:
 
 | Dependency | Pin | Runtime role |
 | --- | --- | --- |
-| [libmobi](https://github.com/bfabiszewski/libmobi) | `906274205c11944b628da1c553b255acb1af7c55` | Native header/table validation, metadata, independent bounded decompression |
-| [KindleUnpack](https://github.com/kevinhendricks/KindleUnpack) | `bf0ca6ece4e73494625e7950be3e259b6260774c` | Independent legacy text decoder in a Python subprocess |
+| [libmobi](https://github.com/bfabiszewski/libmobi) | `906274205c11944b628da1c553b255acb1af7c55` | Bounded validation/decompression, KF8/HUFF reconstruction, extended metadata, OPF/XML and upstream operator tools |
+| [KindleUnpack](https://github.com/kevinhendricks/KindleUnpack) | `bf0ca6ece4e73494625e7950be3e259b6260774c` | Independent legacy decoder used to validate TypeScript MOBI6 exports |
 
 New MOBI exports use an **original deterministic MOBI6 serializer**, not an
 imaginary upstream encoding API: libmobi can write loaded books but does not
@@ -140,7 +141,7 @@ Errors use stderr `{ "ok": false, "error": "..." }`, exit status 1.
 * This is **not lossless**. Images, fonts, CSS/layout, hyperlinks, annotations,
   original navigation and rich metadata are omitted. Image alt text may survive.
   Order of readable EPUB spine entries is preserved; empty/image-only entries
-  are omitted. Headings/first lines and legacy pagebreaks
+  are omitted. Headings and legacy pagebreaks
   heuristically become chapter boundaries. Very large legacy chapters are split.
   Title/author/language are retained where available, not a complete metadata
   round-trip; missing values fall back to Untitled/Anonymous/und. New EPUB
@@ -158,7 +159,8 @@ Errors use stderr `{ "ok": false, "error": "..." }`, exit status 1.
   exceed that limit even if plain text alone fits. UTF-8 sequences are never cut
   at record boundaries. Original images/resources count toward the input limit
   even though they are omitted from output.
-* Native validation has a 15-second deadline, Python decoding a 30-second
+* Native validation/reconstruction has a 30-second wall deadline, Python export
+  validation a 30-second
   deadline and 24 MiB IPC output cap. Python attempts POSIX CPU/address-space
   caps (25 CPU seconds / 512 MiB); support varies by OS. These safeguards and
   private snapshots are **not an OS security sandbox**. Isolate hostile files
@@ -258,3 +260,55 @@ tests also follow every generated link to its expected markup. The importer
 skips the specially marked generated TOC so EPUB round-trips do not gain a
 spurious Contents chapter. This follows the format behavior documented by
 Calibre's FAQ/writer, but physical Kindle behavior remains unverified.
+
+
+## Expanded libmobi backend
+
+The service is split into C validation, resource limits, metadata, reconstruction
+and dispatch modules. TypeScript owns HTML-to-text chapter extraction, UTF-8
+splitting, EPUB/MOBI serialization, settings, process orchestration, snapshots
+and no-overwrite publication. `htmlparser2` is pinned at 10.0.0; parsing never
+executes scripts or fetches linked resources. Internal DTD/entity declarations
+are rejected; ordinary HTML/XHTML PUBLIC doctypes are ignored, not downloaded.
+
+```sh
+node dist/cli.cjs convert book.azw3 new.epub libmobi
+node dist/cli.cjs libmobi-inspect book.mobi
+build/wiz-mobi --capabilities
+build/wiz-mobi inspect-all book.azw3
+```
+
+`inspect-all` includes publisher, imprint, description, ISBN, subject, publication
+date, review, contributor, copyright, ASIN, and hybrid/KF8 flags in addition to
+legacy metadata. `decode` emits reconstructed UTF-8 markup parts as hex JSON;
+it does not create resource files or accept book-controlled output filenames.
+The native application limit is 64 MiB input, 4,096 PDB records, 8 MiB text and
+reconstructed markup, 256 markup parts, 25 CPU seconds and a 512 MiB address
+space cap where supported. TypeScript limits nesting to 128, UTF-8 chapters to
+1 MiB each and 256 total; conversion is still text-focused, not archival.
+The process limits are defense in depth, not an OS sandbox.
+
+The build enables libmobi's bundled XML writer and OPF generator and produces
+its broader **manual operator tools**:
+
+```sh
+mkdir -p /tmp/trusted-book
+build/mobitool -e -o /tmp/trusted-book trusted.mobi  # upstream EPUB reconstruction
+build/mobitool -s -o /tmp/trusted-book trusted.mobi  # source/resources
+build/mobitool -h                                # cover/records/source/hybrid split
+cp trusted.mobi editable-copy.mobi
+build/mobimeta -s 'title=Edited title' editable-copy.mobi
+```
+
+These upstream utilities can extract resources or modify loaded books; they
+are **not bounded application APIs** and should be used only on trusted books
+in an isolated directory. `mobimeta` edits its supplied file: copy it first.
+RawML/new-book serialization is still not a libmobi encoder, so new MOBI6 books
+use our own deterministic TypeScript writer. DRM/decryption is not compiled
+or offered. KF8/AZW3 **output** still requires optional Calibre.
+
+Regression tests use the actual pinned upstream CP1252, NCX/KF8, hybrid
+HUFF/CDIC, uncompressed Unicode, multimedia and obfuscated-font fixtures, plus
+synthetic corruption/DRM/dictionary cases. The upstream EPUB reconstruction and
+metadata editing tools are smoke-tested too; this is not EPUBCheck or KF8
+conformance certification.

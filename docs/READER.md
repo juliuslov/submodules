@@ -129,3 +129,25 @@ resize/position handling; request races; cleanup; and rendering budgets. It is
 not a substitute for real terminal testing. `tests/headless.lua` also exercises
 the actual reader at desktop and 40-column sizes, but must be run on a machine
 with Neovim installed.
+
+## Startup home, high contrast and software anti-ghosting
+
+`:Hikari` opens the separate home workspace with book/conversion/library/build
+and diagnostics actions. Only an attached UI with no file arguments and an
+empty unmodified unnamed normal buffer is eligible for automatic startup.
+Disable it with `startup=false`; a command-only lazy-loaded plugin cannot launch
+at startup, so use `lazy=false` when you want the home screen.
+
+`:HikariMode high` sets a local black/white RGB and terminal palette;
+`:HikariMode normal` restores the normal light/dark reader palette. Configure
+`reader.mode='high'` to start readers in high mode. Global colorscheme/background
+are unchanged.
+
+The reader avoids identical buffer/highlight and geometry writes and caches its
+local palette. Set `reader.anti_ghosting=false` to disable write suppression, or
+use `{enabled=true, full_redraw_every=12}` for an opt-in periodic `redraw!`.
+Default `full_redraw_every=0` avoids needless full-screen redraws. The explicit
+`:HikariRefresh` invalidates caches and repaints; a render failure closes owned
+panes instead of leaving a stale modal layer. This is software redraw management,
+not control over physical e-ink panel refresh/ghosting. No external e-ink protocol
+or hardware-specific setting is changed.

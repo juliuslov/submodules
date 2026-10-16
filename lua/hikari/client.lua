@@ -11,6 +11,7 @@ function M.configure(opts)
   assert(next_config.env == nil or type(next_config.env) == 'table', 'env must be a table')
   config = next_config
 end
+function M.runtime() return { node = config.node, env = config.env } end
 -- callback(error, data); errors always reach the callback, not an async Lua exception.
 function M.request(payload, callback, opts)
   assert(type(callback) == 'function', 'callback required')

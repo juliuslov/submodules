@@ -1,3 +1,4 @@
+local Refresh = require('hikari.reader.refresh')
 local Layout = require('hikari.reader.layout')
 local Text = require('hikari.reader.text')
 local Theme = require('hikari.reader.theme')
@@ -5,7 +6,7 @@ local M = {}
 local Reader = {}
 Reader.__index = Reader
 local active
-local settings = { theme = 'auto' }
+local settings = { theme = 'auto', mode = 'normal', anti_ghosting = Refresh.options() }
 
 local function valid_window(win) return win and vim.api.nvim_win_is_valid(win) end
 local function valid_buffer(buf) return buf and vim.api.nvim_buf_is_valid(buf) end
@@ -14,12 +15,20 @@ function M.configure(opts)
   assert(type(opts) == 'table', 'reader settings must be a table')
   local theme = opts.theme or 'auto'
   assert(theme == 'auto' or theme == 'dark' or theme == 'light', 'reader.theme must be auto, dark or light')
-  settings = { theme = theme }
+  local mode = opts.mode or 'normal'
+  assert(mode == 'normal' or mode == 'high', 'reader.mode must be normal or high')
+  settings = { theme = theme, mode = mode, anti_ghosting = Refresh.options(opts.anti_ghosting) }
 end
 function M.current() return active end
+function M.set_mode(mode)
+  assert(mode == 'normal' or mode == 'high', 'mode must be normal or high')
+  settings.mode = mode
+  if active then active.mode = mode; active:refresh() end
+end
 
 function Reader:_write(pane, lines, highlights)
   if not pane or not valid_buffer(pane.buf) then return end
+  if Refresh.unchanged(pane, lines, highlights, self.anti_ghosting.enabled) then return end
   vim.bo[pane.buf].modifiable = true
   vim.api.nvim_buf_set_lines(pane.buf, 0, -1, false, lines)
   vim.bo[pane.buf].modifiable = false
@@ -56,25 +65,30 @@ function Reader:_pane(name, geometry)
     style = 'minimal', border = 'none', focusable = name ~= 'root',
     zindex = name == 'root' and 50 or 51,
   }
-  if valid_window(pane.win) then vim.api.nvim_win_set_config(pane.win, config)
+  local unchanged = Refresh.geometry(pane, config) and self.anti_ghosting.enabled
+  if valid_window(pane.win) then
+    if not unchanged then vim.api.nvim_win_set_config(pane.win, config) end
   else pane.win = vim.api.nvim_open_win(pane.buf, false, config) end
-  vim.api.nvim_win_set_hl_ns(pane.win, name == 'root' and self.canvas_namespace or self.namespace)
-  vim.wo[pane.win].winhighlight = 'Normal:' .. (name == 'root' and 'HikariGhostCanvas' or 'HikariGhostText')
-  vim.wo[pane.win].wrap = false
-  vim.wo[pane.win].number = false
-  vim.wo[pane.win].relativenumber = false
-  vim.wo[pane.win].signcolumn = 'no'
-  vim.wo[pane.win].foldcolumn = '0'
-  vim.wo[pane.win].foldenable = false
-  vim.wo[pane.win].foldmethod = 'manual'
-  vim.wo[pane.win].cursorcolumn = false
-  vim.wo[pane.win].colorcolumn = ''
-  vim.wo[pane.win].winbar = ''
-  vim.wo[pane.win].spell = false
-  vim.wo[pane.win].list = false
-  vim.wo[pane.win].scrolloff = 2
-  vim.wo[pane.win].fillchars = 'eob: '
-  vim.wo[pane.win].cursorline = name == 'toc'
+  if not self.anti_ghosting.enabled or pane.configured_win ~= pane.win then
+    vim.api.nvim_win_set_hl_ns(pane.win, name == 'root' and self.canvas_namespace or self.namespace)
+    vim.wo[pane.win].winhighlight = 'Normal:' .. (name == 'root' and 'HikariGhostCanvas' or 'HikariGhostText')
+    vim.wo[pane.win].wrap = false
+    vim.wo[pane.win].number = false
+    vim.wo[pane.win].relativenumber = false
+    vim.wo[pane.win].signcolumn = 'no'
+    vim.wo[pane.win].foldcolumn = '0'
+    vim.wo[pane.win].foldenable = false
+    vim.wo[pane.win].foldmethod = 'manual'
+    vim.wo[pane.win].cursorcolumn = false
+    vim.wo[pane.win].colorcolumn = ''
+    vim.wo[pane.win].winbar = ''
+    vim.wo[pane.win].spell = false
+    vim.wo[pane.win].list = false
+    vim.wo[pane.win].scrolloff = 2
+    vim.wo[pane.win].fillchars = 'eob: '
+    vim.wo[pane.win].cursorline = name == 'toc'
+    pane.configured_win = pane.win
+  end
   return pane
 end
 function Reader:_remember()
@@ -170,7 +184,7 @@ function Reader:_toc()
   self:_write(self.panes.toc, lines, highlights)
   vim.api.nvim_win_set_cursor(self.panes.toc.win, { math.min(#lines, self.index + 3), 0 })
 end
-function Reader:_render()
+function Reader:_draw()
   if self.closed then return end
   self:_remember()
   local current = vim.api.nvim_get_current_win()
@@ -178,15 +192,19 @@ function Reader:_render()
   for _, pane in pairs(self.panes) do if pane.win == current then owned = true end end
   self.rendering = true
   self.geometry = Layout.calculate(vim.o.columns, vim.o.lines, vim.o.cmdheight)
-  Theme.apply(self.namespace, self.theme)
-  Theme.apply(self.canvas_namespace, self.theme, true)
+  local palette = self.mode == 'high' and 'high' or self.theme
+  if not self.anti_ghosting.enabled or self.applied_palette ~= palette then
+    Theme.apply(self.namespace, palette)
+    Theme.apply(self.canvas_namespace, palette, true)
+    self.applied_palette = palette
+  end
   self:_pane('root', self.geometry.root)
   local header = self:_pane('header', self.geometry.header)
   if header then
     local w = self.geometry.header.width
     local title = self.info and self.info.title or 'Your next good read'
     local authors = self.info and table.concat(self.info.creators or {}, ', ') or 'EPUB READER'
-    local lines = { Text.fit('  GHOST / READER', w), Text.fit('  ' .. Text.clean(title), w) }
+    local lines = { Text.fit('  HIKARI / ' .. self.mode:upper() .. ' READER', w), Text.fit('  ' .. Text.clean(title), w) }
     if self.geometry.header.height >= 4 then
       lines[3] = Text.fit('  ' .. authors .. '   /   ' .. self.theme:upper(), w)
       lines[4] = string.rep('-', w)
@@ -212,6 +230,13 @@ function Reader:_render()
     if valid_window(pane and pane.win) then vim.api.nvim_set_current_win(pane.win) end
   end
   self.focus_pending = false
+  Refresh.frame(self)
+end
+function Reader:_render()
+  if self.closed then return end
+  local ok, err = pcall(self._draw, self)
+  self.rendering = false
+  if not ok then self:close(); error(err) end
 end
 function Reader:_inspect()
   self.epoch = self.epoch + 1
@@ -307,6 +332,11 @@ function Reader:_keys(name, buffer)
     end)
   end
 end
+function Reader:refresh()
+  for _, pane in pairs(self.panes) do pane.last_lines = nil; pane.last_config = nil; pane.configured_win = nil end
+  self.applied_palette = nil; self:_render()
+  if vim.cmd then pcall(vim.cmd, 'redraw!') end
+end
 function Reader:close()
   if self.closed then return end
   self.closed, self.epoch = true, self.epoch + 1
@@ -330,6 +360,7 @@ function M.open(path, opts)
     canvas_namespace = vim.api.nvim_create_namespace('hikari_ghost_reader_canvas'),
     panes = {}, titles = {}, positions = {}, index = 0, epoch = 0, theme = theme,
     focus = 'body', focus_pending = true, on_close = opts.on_close,
+    mode = settings.mode, anti_ghosting = settings.anti_ghosting,
   }, Reader)
   active = self
   self.group = vim.api.nvim_create_augroup('HikariGhostReader', { clear = true })

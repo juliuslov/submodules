@@ -146,3 +146,27 @@ is still text-focused. Calibre is unavailable in this sandbox: external tests
 use a fake executable and an optional real-tool test remains gated. Neovim's
 v0.11.5 release redirect is blocked by the sandbox host allowlist, so editor
 models are not presented as real Neovim validation. KFX/DRM removal are not added.
+
+## Expanded libmobi / TypeScript / redraw work
+
+- [libmobi README](https://github.com/bfabiszewski/libmobi) and pinned
+  `src/{parse_rawml,write,opf,xmlwriter}.c`, `tools/{mobitool,mobimeta}.c`:
+  RawML reconstruction supports KF8, hybrid and HUFF/CDIC; bundled XML/OPF
+  support is enabled. Loaded-book writeback/metadata editing is not a new-book
+  HTML encoder. Upstream tools are built separately from bounded app operations.
+- [htmlparser2 v10.0.0](https://github.com/fb55/htmlparser2/tree/v10.0.0): streaming
+  parser used for TypeScript-owned legacy/reconstructed HTML extraction. The
+  application explicitly skips scripts/styles/navigation and bounds depth/text;
+  it does not fetch doctypes/resources or expand internal DTD declarations.
+- [Neovim 0.11.5 :redraw](https://github.com/neovim/neovim/blob/v0.11.5/runtime/doc/various.txt):
+  `redraw!` repaints the entire screen; it does not drive physical e-ink hardware.
+  Identical buffer/highlight/geometry updates are suppressed and periodic full
+  redraw is opt-in. Local namespaces preserve the user's global colorscheme.
+- [Neovim startup documentation](https://github.com/neovim/neovim/blob/v0.11.5/runtime/doc/starting.txt):
+  startup UI is deferred until VimEnter/UIEnter and gated on an attached UI,
+  no argv files and an empty unmodified unnamed buffer. No startup build/install.
+
+Actual pinned upstream sample books, not synthetic “KF8-looking” headers, are
+used for KF8/HUFF/media/font conversion regressions. Linux clean build and model
+checks are recorded in the PR; no real Neovim or real Calibre executable was
+available in the development sandbox for this expansion.

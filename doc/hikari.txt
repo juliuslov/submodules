@@ -40,19 +40,20 @@ No service build, download, conversion or network request runs at startup.
 ==============================================================================
 2. Commands                                                  *hikari-commands*
 
-:Hikari                         Open this help.
+:Hikari                         Open the ebook home workspace.
 :Hikari help                    Open this help.
 :Hikari open {book}              Same as :HikariOpen.
 :Hikari convert {in} {out}       Same as :HikariConvert.
 :Hikari! convert {in} {out}      Select the optional Calibre backend.
-:Hikari inspect {book}           Inspect EPUB or native-supported legacy MOBI.
+:Hikari inspect {book}           Inspect EPUB or extended libmobi metadata.
 :Hikari formats                 Show engine capabilities (not installed status).
 :Hikari doctor                  Show installed runtime/build availability.
 :Hikari close                   Close the reader/cancel pending display requests.
 
 :HikariOpen[!] {book}                                  *:HikariOpen*
     Open EPUB directly. MOBI/PRC/AZW/AZW3 extensions trigger temporary conversion
-    to EPUB. ! explicitly selects Calibre for unsupported Kindle variants.
+    to EPUB using built-in libmobi, including KF8/HUFF/hybrids. ! selects
+    optional installed Calibre instead (not automatic fallback).
     Originals are not modified. The converted EPUB is deleted on reader close,
     replacement, conversion error, or editor exit. A superseded request cannot
     reopen the reader later. Pending bounded workers may finish in the background
@@ -64,7 +65,7 @@ No service build, download, conversion or network request runs at startup.
     arguments with backslashes, or use the Lua API below.
 
 :HikariInspect {book}                                  *:HikariInspect*
-    Native EPUB/legacy-MOBI metadata inspection, not an external KF8 inspector.
+    EPUB or libmobi metadata inspection, including KF8/hybrid flags.
 :HikariDoctor                                         *:HikariDoctor*
     Runtime diagnostics; missing optional Calibre does not break native features.
 :HikariFormats                                        *:HikariFormats*
@@ -87,13 +88,32 @@ is never automatic. See docs/KOSYNC.md for credentials and opaque positions.
 Reader controls: n/p chapters, t contents, d local light/dark theme, q close.
 The Ghost-inspired reader adapts to small terminals; it is not a phone app.
 
+:HikariWorkspace                                     *:HikariWorkspace*
+    Open home UI with o open, c convert, l library, d diagnostics, f formats,
+    i explicit installer, h help, q/Esc close. This is not an operating system.
+    Startup requires an attached UI, no file arguments and an empty,
+    unmodified unnamed normal buffer. With lazy.nvim use lazy=false.
+:HikariInstall[!]                                    *:HikariInstall*
+    Run the modular build installer explicitly; ! also runs tests. Never
+    executes at startup. Requires installed toolchains; no sudo or OS packages.
+:HikariMode {normal|high}                             *:HikariMode*
+    High mode is local white-on-black contrast; normal restores regular theme.
+:HikariRefresh                                       *:HikariRefresh*
+    Invalidate cached panes and force a software repaint. Anti-ghosting avoids
+    identical buffer/config updates; full_redraw_every opts into redraw! at
+    a chosen frame interval (0 default, 1..1000). No hardware e-ink control.
+:HikariLibmobiInspect {book}                          *:HikariLibmobiInspect*
+    Extended metadata for DRM-free MOBI/KF8/HUFF/hybrid input.
+
 ==============================================================================
 3. Configuration                                             *hikari-config*
 >lua
     require('hikari').setup({
       node = 'node',
       -- cli = '/absolute/path/to/plugin/dist/cli.cjs',
-      reader = { theme = 'auto' }, -- auto, dark, light
+      startup = { enabled = true }, -- false to disable home UI
+      reader = { theme = 'auto', mode = 'normal', -- mode: normal, high
+        anti_ghosting = { enabled = true, full_redraw_every = 0 } },
       env = {
         -- HIKARI_CALIBRE = '/path/to/ebook-convert',
         -- HIKARI_PYTHON = '/path/to/python3',
@@ -136,12 +156,16 @@ Other modules: hikari.reader, hikari.ascii, hikari.kosync, hikari.library.
 ==============================================================================
 5. Conversion formats and safety                             *hikari-formats*
 
-Native/default: DRM-free MOBI6/7 with uncompressed or PalmDOC text; EPUB input
+Native CLI/API default: DRM-free MOBI6/7 with uncompressed or PalmDOC text; EPUB input
 and output; new deterministic UTF-8 MOBI6 output with generated Contents/guide
 links using UTF-8 byte offsets. Both pinned libmobi and KindleUnpack decoders
 must accept MOBI exports. UTF-8 and Windows-1252 import are supported.
 
-Optional Calibre: upstream handles KF8/AZW3, hybrid MOBI/KF8 and HUFF/CDIC input.
+Built-in libmobi (Neovim default): reconstructs KF8/AZW3, hybrid and HUFF/CDIC
+input. TypeScript parses text and writes EPUB/MOBI6; Python independently
+checks MOBI6 exports. CLI/API select options.backend="libmobi" explicitly.
+
+Optional Calibre: also handles those extended inputs and enables AZW3 output.
 hikari passes these through a separately installed ebook-convert, then applies
 its existing EPUB/text policy. Exports support EPUB, old MOBI6 and AZW3. MOBI
 exports still pass both pinned decoders; AZW3 exports must round-trip through

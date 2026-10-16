@@ -45,6 +45,7 @@ async function main(): Promise<void> {
     case 'convert':
     case 'mobi-convert': data = await convertMobi(path(req.path), path(req.output), req.conversion); break;
     case 'formats': data = conversionFormats(); break;
+    case 'libmobi-inspect': data = await inspectMobi(path(req.path), true); break;
     case 'mobi-inspect': data = await inspectMobi(path(req.path)); break;
     case 'kosync': data = await runKoSync(req.sync!); break;
     case 'ascii': data = await imageToAscii(path(req.path), req.options ?? {}); break;
@@ -56,7 +57,7 @@ async function main(): Promise<void> {
       data = scanLibrary(path(req.path), req.query); break;
     case 'archive': data = inspectArchive(path(req.path)); break;
     case 'doctor': data = doctor(); break;
-    default: throw new Error('usage: cli.cjs convert|mobi-convert <input> <output.epub|output.mobi|output.azw3> [native|calibre]; mobi-inspect <file>; ascii <image> [width]; kosync-authorize|kosync-register; kosync-pull <document>; kosync-push <spec.json>; kosync-document <file> [binary|filename]; inspect|read|archive <file> [zero-based-index]; create <spec.json> <output.epub>; scan <directory> [query]; doctor; rpc');
+    default: throw new Error('usage: cli.cjs convert|mobi-convert <input> <output.epub|output.mobi|output.azw3> [native|libmobi|calibre]; mobi-inspect <file>; ascii <image> [width]; kosync-authorize|kosync-register; kosync-pull <document>; kosync-push <spec.json>; kosync-document <file> [binary|filename]; inspect|read|archive <file> [zero-based-index]; create <spec.json> <output.epub>; scan <directory> [query]; doctor; rpc');
   }
   process.stdout.write(JSON.stringify({ ok: true, data }) + '\n');
 }

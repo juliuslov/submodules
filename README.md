@@ -1,9 +1,9 @@
 # hikari
 
 A **standalone Neovim ebook reader and converter**, with a Ghost-inspired,
-responsive terminal reading workspace. Read EPUB, open legacy MOBI through a
-temporary EPUB conversion, and optionally use Calibre for KF8/AZW3 and more
-MOBI variants. Includes EPUB generation, image-to-ASCII and an explicit KoSync
+responsive terminal reading workspace. Read EPUB and open DRM-free MOBI,
+KF8/AZW3, hybrid and HUFF/CDIC books through built-in libmobi reconstruction
+and our TypeScript text converter. Calibre is optional for AZW3 output. Includes EPUB generation, image-to-ASCII and an explicit KoSync
 client. No installer.nvim dependency, browser, database, or startup downloads.
 
 **Plugin name:** `hikari` · **Lua:** `require('hikari')` · **Help:** `:help hikari`
@@ -23,11 +23,13 @@ Requirements: **Neovim 0.10+**, **Node 22+**, npm, C99 compiler, Make, `ar`,
   name = 'hikari',
   main = 'hikari',
   branch = 'arena/fc59f9a1-submodules', -- open PR branch; remove after merge
-  cmd = { 'Hikari', 'HikariOpen', 'HikariClose', 'HikariConvert',
-    'HikariInspect', 'HikariDoctor', 'HikariFormats', 'HikariLibrary',
-    'HikariAscii', 'HikariEpubExport' },
-  build = 'git submodule update --init --recursive && npm ci && npm run build',
-  opts = { reader = { theme = 'auto' } },
+  lazy = false, -- load at startup for the home workspace
+  build = './install.sh',
+  opts = {
+    startup = { enabled = true },
+    reader = { theme = 'auto', mode = 'normal',
+      anti_ghosting = { enabled = true, full_redraw_every = 0 } },
+  },
 }
 ```
 
@@ -40,9 +42,9 @@ For a native-package installation, clone this branch under
 `stdpath('data')/site/pack/plugins/start/hikari`, then initialize/build there:
 
 ```sh
-git submodule update --init --recursive
-npm ci
-npm run build
+./install.sh --check  # inspect prerequisites, no installs
+./install.sh          # submodules + npm ci + C/Rust/TypeScript + libmobi tools
+./install.sh --test   # build and run tests; reports unavailable optional checks
 ```
 
 Or prepend a local checkout to `runtimepath` and call setup:
@@ -58,19 +60,40 @@ runtimepath; setup is safe to repeat. The build writes ignored `build/` and
 `dist/`, not library sources. Do not copy only the JS bundle: MOBI needs the
 Python adapter and pinned upstream source in the checkout too.
 
+## Startup workspace and display controls
+
+`:Hikari` opens a keyboard-driven home workspace: open books, convert, scan a
+library, inspect diagnostics/formats, build explicitly, or read help. It opens
+at startup **only** with an attached UI, no file arguments, and an empty,
+unmodified, unnamed normal buffer. Set `startup = false` to disable it. With
+lazy.nvim, use `lazy = false` as above; command-only lazy loading cannot show a
+startup home screen. This is an ebook workspace, **not an operating system**.
+
+`:HikariMode high` selects local black/white high contrast; `normal` restores
+the regular palette. Software anti-ghosting skips identical text/highlight and
+window-geometry updates. `full_redraw_every = 12` opts into a periodic `redraw!`;
+`0` disables periodic repaint. `:HikariRefresh` forces a repaint. No global
+colorscheme changes, blanking timer, or physical e-ink refresh claims.
+
+See [installer/build details](docs/INSTALL.md).
+
 ## Read and convert
 
 | Command | Action |
 | --- | --- |
+| `:Hikari` | Open home workspace |
+| `:HikariInstall[!]` | Build all services; bang also runs tests |
+| `:HikariMode high` | High-contrast reading mode |
+| `:HikariRefresh` | Force software repaint |
 | `:HikariOpen /books/book.epub` | Open the responsive EPUB reader |
 | `:HikariOpen /books/book.mobi` | Convert to temporary EPUB, then read; preserve the original |
 | `:HikariOpen! /books/book.azw3` | Explicitly use installed Calibre, then read |
 | `:HikariClose` | Close and discard temporary converted content |
 | `:HikariConvert in.epub new.mobi` | Native, independently validated MOBI6 export |
-| `:HikariConvert in.mobi new.epub` | Native legacy-MOBI import |
+| `:HikariConvert in.mobi new.epub` | Built-in MOBI/KF8/HUFF import |
 | `:HikariConvert! in.azw3 new.epub` | Optional Calibre extended import |
 | `:HikariConvert! in.epub new.azw3` | Optional Calibre KF8 export |
-| `:HikariInspect book.mobi` | Native EPUB/legacy-MOBI metadata inspection |
+| `:HikariInspect book.mobi` | EPUB or extended libmobi metadata inspection |
 | `:HikariFormats` | Engine capabilities and limitations |
 | `:HikariDoctor` | Installed runtime/native availability |
 | `:HikariEpubExport new.epub` | Export current buffer as a plain-text EPUB |
@@ -93,10 +116,11 @@ reopen a reader you closed. See [reader details](docs/READER.md).
 
 | Engine | Input | Output |
 | --- | --- | --- |
-| **Native (default)** | EPUB; DRM-free MOBI6/7, uncompressed or PalmDOC | EPUB; deterministic UTF-8 MOBI6 |
+| **libmobi (Neovim commands/default open)** | EPUB; DRM-free MOBI6/7, HUFF/CDIC, KF8/AZW3 and hybrids | EPUB; TypeScript MOBI6 |
+| **Native (CLI/API default)** | EPUB; DRM-free MOBI6/7, uncompressed or PalmDOC | EPUB; deterministic UTF-8 MOBI6 |
 | **Calibre (explicit opt-in)** | EPUB; MOBI including HUFF/CDIC; KF8/AZW3; hybrid MOBI/KF8, subject to preflight/policy | EPUB; old MOBI6; AZW3 |
 
-Install Calibre's `ebook-convert` yourself for the second row, or set
+Install Calibre's `ebook-convert` yourself for the optional engine, or set
 `HIKARI_CALIBRE=/absolute/path/to/ebook-convert`. There is no silent fallback,
 automatic installation, external DRM plugin loading from your normal Calibre
 profile, or promise of universal Kindle support. KFX, Topaz, encrypted books,
@@ -106,7 +130,9 @@ dictionaries, print replicas and non-MOBI PRC/PDB are not supported.
 original links/navigation and rich metadata are omitted. The native writer now
 regenerates a Contents page and legacy guide links with UTF-8 **byte** offsets;
 imports skip that generated page rather than duplicating it as a chapter.
-Both pinned decoders validate MOBI exports. AZW3 exports use a Calibre round-trip
+C/libmobi reconstructs input; TypeScript parses text and writes EPUB/MOBI6.
+Python/KindleUnpack is an independent MOBI6 export guard, not the primary
+converter. Both pinned decoders validate MOBI exports. AZW3 exports use a Calibre round-trip
 into a bounded readable EPUB, not independent KF8 conformance certification.
 
 External processing uses private work/config/cache/temp directories, bounded

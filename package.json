@@ -13,7 +13,9 @@
     "test": "npm run build && npm run typecheck && make test-native test-ascii test-mobi && node --test tests/*.test.cjs",
     "doctor": "node dist/cli.cjs doctor",
     "build:ascii": "make ascii",
-    "build:mobi": "make mobi"
+    "build:mobi": "make mobi",
+    "setup": "node scripts/install/main.mjs",
+    "setup:check": "node scripts/install/main.mjs --check"
   },
   "repository": {
     "type": "git",
@@ -25,7 +27,8 @@
   },
   "homepage": "https://github.com/juliuslov/submodules#readme",
   "dependencies": {
-    "fast-xml-parser": "5.11.2"
+    "fast-xml-parser": "5.11.2",
+    "htmlparser2": "10.0.0"
   },
   "devDependencies": {
     "@types/node": "22.20.5",
