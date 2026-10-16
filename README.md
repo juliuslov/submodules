@@ -19,7 +19,9 @@ so a clone is self-contained. The work is on the branch
 Requirements: **Neovim 0.10+**, **Node 22.12+**, npm, C99 compiler, Make, `ar`,
 **Python 3.8+**. **Rust 1.88+** is optional: it only builds the napi-rs
 image-to-ASCII addon, and the built-in TypeScript renderer covers the feature
-without it. POSIX Linux/macOS are targeted; Linux is tested.
+without it. POSIX Linux/macOS are targeted; Linux is tested. **Termux/Android**
+is supported natively — see [`docs/TERMUX.md`](docs/TERMUX.md) and the
+one-command bootstrap below.
 
 ```lua
 {
@@ -35,6 +37,26 @@ without it. POSIX Linux/macOS are targeted; Linux is tested.
   },
 }
 ```
+
+### Android (Termux)
+
+No proot, no root, no cross-compilation:
+
+```sh
+pkg install -y git
+git clone https://github.com/juliuslov/submodules && cd submodules
+sh scripts/install/termux.sh --all
+```
+
+The bootstrap checks and installs the Termux packages
+([`scripts/install/termux-packages.txt`](scripts/install/termux-packages.txt)),
+asks for shared-storage access, then builds the same native and Node pieces as a
+desktop install. WeiWei adopts `~/storage/music` (and `~/storage/shared/Music`)
+as its library, holds a `termux-wake-lock` while a track is loaded so audio
+survives the screen turning off, and can mirror the current track into a
+Termux:API notification. `:WeiWeiTermux` prints the device report, including the
+exact `pkg install` line for anything missing. Full walkthrough:
+[`docs/TERMUX.md`](docs/TERMUX.md).
 
 See [`examples/lazy.lua`](examples/lazy.lua). `main = 'hikari'` makes setup
 unambiguous even though the repository slug is different. No dependency on

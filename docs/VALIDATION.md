@@ -342,3 +342,53 @@ last-resort plain-lyrics fallback when no provider has a synchronised match
 no `mpv`, `yt-dlp`, `ffmpeg`, `zenity` or `kdialog` binary, no audio device and
 no network access from the tests — the TTML/LRC fixtures, the yt-dlp argv and
 the HTTP transports are all scripted.
+
+## 2026-10-16: Termux/Android support
+
+Added a native Termux path (no proot, no root, no cross-compilation) and verified
+everything that can be verified without a phone:
+
+| Check | Result | Command |
+| --- | ---: | --- |
+| Installer/platform unit tests (incl. Termux) | 7 | `node --test tests/installer.test.cjs` |
+| Node/TypeScript services | 95 (94 pass, 1 skip) | `npm test` |
+| Lua models (19 services + 29 reader + 15 hikari + 31 WeiWei) | 94 `ok` | `.venv/bin/python tests/run_lua.py` |
+| Native C/Python (archive + MOBI) | 11 + 15 | `make test-native test-mobi` |
+| Bootstrap script syntax | `sh -n` exit 0 | `sh -n scripts/install/termux.sh` |
+
+What the tests actually exercise:
+
+* **Detection.** `PREFIX=/data/data/com.termux/files/usr`, `TERMUX_PREFIX` and
+  `TERMUX_VERSION` all select Termux; `process.platform === 'android'` is
+  supported too; Windows stays unsupported. On the Lua side the same signals plus
+  an android-y `uname` release are tested, including Neovim's `vim.NIL` for unset
+  variables (a userdata, not a string) and a desktop kernel that must **not** look
+  like Android.
+* **Toolchain mapping.** `cc`→`clang`, `ar`→`llvm-ar` with explicit `CC`/`AR`
+  still winning, and the error path: in this sandbox `clang` is absent, so
+  `node scripts/install/main.mjs --check` with a Termux environment prints the
+  detection line and fails with `On Termux: pkg install -y clang`.
+* **Package list.** `scripts/install/termux-packages.txt` is parsed by both the
+  installer and the bootstrap; the test asserts the required/optional split
+  (neovim, nodejs-lts, mpv, clang…; termux-api/rust/ripgrep optional) and the
+  binary names (`neovim`→`nvim`, `nodejs-lts`→`node`, `termux-api`→
+  `termux-notification`).
+* **Bootstrap behaviour.** `--help`, `--check`, `--packages` and `--no-build`
+  are driven with a shadowed `pkg` that logs its arguments: `--check` reports and
+  installs nothing, `--packages --no-build` runs exactly one `pkg install -y …`
+  for the missing required packages only (no optional ones), and outside Termux
+  the script refuses to guess.
+* **Lua device behaviour.** `lua/weiwei/platform.lua` is covered end to end:
+  storage detection, `~/storage/music` + `~/storage/shared/Music` adoption as the
+  default library (with explicit directories and the `{}` opt-out both winning),
+  wake-lock acquire/release with deduplication, the now-playing notification
+  argv, `pkg install` hints derived from the missing binaries, and the health
+  report's `## Termux / Android` section. Playback is driven through the stub
+  player: loading a track takes the lock, stopping releases it, shutdown clears
+  the notification.
+
+**Not verified here:** everything that needs actual Android — real `mpv` output
+on the phone, the wake lock surviving a screen-off, `termux-setup-storage`
+permissions, Termux:API notifications, and the arm64 builds of libmobi/wiz-mobi
+(the sandbox is x86-64 with no Android toolchain). `docs/TERMUX.md` lists the
+four commands that identify a device-side failure.

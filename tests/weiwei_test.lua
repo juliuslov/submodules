@@ -135,6 +135,17 @@ test('configuration rejects unknown keys and invalid values, and deep-merges', f
   assert(merged.library.directories[1] == '/music')
   assert(config.get(merged, 'ui.window.width') == 0.82)
   assert(config.set(merged, 'ui.window.width', 0.9) and config.get(merged, 'ui.window.width') == 0.9)
+  -- Termux options: tri-state, validated, and nil still means "auto-detect".
+  assert(merged.termux.wake_lock == 'auto' and merged.termux.notification == 'auto')
+  assert(merged.termux.library_directories == nil, 'auto-detection must survive the merge')
+  local _, bad_wake = config.resolve({ termux = { wake_lock = 'sometimes' } })
+  assert(bad_wake and bad_wake:find('termux.wake_lock'), 'invalid wake lock mode accepted')
+  local _, bad_notification = config.resolve({ termux = { notification = 'yes' } })
+  assert(bad_notification and bad_notification:find('termux.notification'), 'invalid notification mode accepted')
+  local _, bad_directories = config.resolve({ termux = { library_directories = { '/music', 3 } } })
+  assert(bad_directories and bad_directories:find('termux.library_directories'), 'non-string directory accepted')
+  local explicit = assert(config.resolve({ termux = { library_directories = {} } }))
+  assert(type(explicit.termux.library_directories) == 'table' and #explicit.termux.library_directories == 0)
 end)
 
 test('theme builds Apple Music-inspired highlights for both modes', function()
@@ -798,6 +809,209 @@ test('unified search merges local and streaming results and explains gaps', func
   vim.fn.executable = function() return 1 end
   local parsed = require('weiwei.search').parse('Lantern - Mira')
   assert(parsed.title == 'Lantern' and parsed.artist == 'Mira', 'combined query parsing failed')
+end)
+
+-- ------------------------------------------------------------------ termux --
+
+--- Runs `fn` with temporary environment values, restoring them afterwards.
+local function with_env(values, fn)
+  local saved = {}
+  for name, value in pairs(values) do
+    saved[name] = vim.env[name]
+    vim.env[name] = value
+  end
+  local ok, err = pcall(fn)
+  for name in pairs(values) do vim.env[name] = saved[name] end
+  if not ok then error(err, 0) end
+end
+
+--- Runs `fn` with only the listed binaries reported as executable.
+local function with_executables(names, fn)
+  local previous = vim.fn.executable
+  vim.fn.executable = function(name) return names[name] and 1 or 0 end
+  local ok, err = pcall(fn)
+  vim.fn.executable = previous
+  if not ok then error(err, 0) end
+end
+
+local TERMUX_ENV = { PREFIX = '/data/data/com.termux/files/usr', TERMUX_VERSION = '0.118.3' }
+
+test('platform detection separates a desktop from Termux and its storage layout', function()
+  local platform = require('weiwei.platform')
+  platform.reset()
+  -- Plain Linux/macOS: unchanged behaviour, no implicit library directories.
+  assert(platform.is_termux() == false, 'desktop misdetected as Termux')
+  assert(platform.name() == 'linux', platform.name())
+  assert(#platform.default_library_directories() == 0, 'the desktop must not gain implicit directories')
+
+  -- Neovim returns vim.NIL for unset variables: that must not be mistaken for a
+  -- value (it is a userdata, not a string).
+  local previous = vim.fn.getenv
+  vim.fn.getenv = function() return vim.NIL end
+  assert(platform.is_termux() == false, 'vim.NIL treated as a Termux marker')
+  assert(platform.env('PREFIX') == nil)
+  vim.fn.getenv = previous
+
+  local home = python_mkdtemp('weiwei-termux-')
+  python_mkdir(home .. '/storage/music')
+  python_mkdir(home .. '/storage/shared/Music')
+  with_env({ PREFIX = TERMUX_ENV.PREFIX, TERMUX_VERSION = TERMUX_ENV.TERMUX_VERSION, HOME = home }, function()
+    assert(platform.is_termux(), 'PREFIX was ignored')
+    assert(platform.name() == 'termux')
+    assert(platform.prefix() == TERMUX_ENV.PREFIX)
+    assert(platform.storage_available(), '~/storage should be detected')
+    local directories = platform.default_library_directories()
+    assert(#directories == 2, 'expected both music directories, got ' .. #directories)
+    assert(directories[1] == home .. '/storage/music', directories[1])
+    assert(directories[2] == home .. '/storage/shared/Music', directories[2])
+    assert(platform.install_command({ 'mpv', 'yt-dlp', 'ffmpeg' }) == 'pkg install -y mpv yt-dlp ffmpeg')
+    assert(platform.package_for('termux-notification') == 'termux-api')
+    assert(platform.install_command({}) == nil)
+  end)
+
+  -- Without shared storage there is nothing to adopt, and the report says so.
+  local bare = python_mkdtemp('weiwei-bare-')
+  with_env({ PREFIX = TERMUX_ENV.PREFIX, HOME = bare }, function()
+    assert(platform.is_termux())
+    assert(platform.storage_available() == false)
+    assert(#platform.default_library_directories() == 0)
+  end)
+
+  -- A Termux build that lost its environment is still recognised through uname.
+  local sysname, release = vim.uv.os_uname().sysname, vim.uv.os_uname().release
+  vim.uv.os_uname = function() return { sysname = 'Linux', release = 'android13-5.15.140', version = '#1 SMP' } end
+  assert(platform.is_termux(), 'android kernel string not detected')
+  vim.uv.os_uname = function() return { sysname = sysname, release = release, version = '' } end
+  assert(platform.is_termux() == false, 'a normal kernel must not look like Android')
+end)
+
+test('the wake lock and the now-playing notification only run on a Termux device', function()
+  local platform = require('weiwei.platform')
+  platform.reset()
+  local calls = {}
+  platform.set_runner(function(argv, options, callback)
+    calls[#calls + 1] = argv
+    if callback then callback({ code = 0, stdout = '', stderr = '' }) end
+    return { code = 0 }
+  end)
+
+  -- Not Termux: nothing happens, not even a spawn.
+  assert(platform.wake_lock(true, { mode = 'auto' }) == false)
+  assert(#calls == 0, 'the wake lock must not run on a desktop')
+  assert(platform.notify('Title', 'Body') == false)
+  assert(#calls == 0)
+  -- `mode = never` is honoured even on the phone.
+  with_env({ PREFIX = TERMUX_ENV.PREFIX, TERMUX_VERSION = '0.118.3' }, function()
+    assert(platform.wake_lock(true, { mode = 'never' }) == false)
+    -- Missing termux-tools: reported, and explained with the package name.
+    with_executables({}, function()
+      local ok, reason = platform.wake_lock(true, { mode = 'auto' })
+      assert(ok == false and reason:find('termux-wake-lock', 1, true), tostring(reason))
+      local notified, notify_reason = platform.notify('Title', 'Body', { mode = 'auto' })
+      assert(notified == false and notify_reason:find('termux-api', 1, true), tostring(notify_reason))
+    end)
+    with_executables({ ['termux-wake-lock'] = true, ['termux-wake-unlock'] = true,
+      ['termux-notification'] = true, ['termux-notification-remove'] = true }, function()
+      assert(#calls == 0)
+      assert(platform.wake_lock(true, { mode = 'auto' }))
+      assert(platform.wake_lock_held())
+      assert(table.concat(calls[1], ' ') == 'termux-wake-lock', table.concat(calls[1], ' '))
+      -- Repeated calls are deduplicated: the UI hooks every transition.
+      assert(platform.wake_lock(true, { mode = 'auto' }))
+      assert(#calls == 1, 'the wake lock was acquired twice')
+      assert(platform.notify('Đèn Biển', 'Ca sĩ · Album', { mode = 'auto' }))
+      assert(table.concat(calls[2], ' '):find('termux-notification --id weiwei-now-playing --ongoing', 1, true),
+        table.concat(calls[2], ' '))
+      assert(calls[2][#calls[2]] == 'Ca sĩ · Album', 'the notification content is missing')
+      assert(platform.wake_lock(false, { mode = 'auto' }))
+      assert(platform.wake_lock_held() == false)
+      assert(calls[3][1] == 'termux-wake-unlock')
+      assert(platform.clear_notification())
+      assert(calls[4][1] == 'termux-notification-remove' and calls[4][2] == 'weiwei-now-playing')
+    end)
+  end)
+  platform.reset()
+  platform.set_runner(nil)
+end)
+
+test('a Termux session adopts the phone music library and holds the lock while playing', function()
+  local home = python_mkdtemp('weiwei-phone-')
+  python_mkdir(home .. '/storage/music')
+  local calls = {}
+  local function capture(argv, options, callback)
+    calls[#calls + 1] = table.concat(argv, ' ')
+    if callback then callback({ code = 0, stdout = '', stderr = '' }) end
+    return { code = 0 }
+  end
+
+  with_env({ PREFIX = TERMUX_ENV.PREFIX, TERMUX_VERSION = '0.118.3', HOME = home }, function()
+    with_executables({ ['termux-wake-lock'] = true, ['termux-wake-unlock'] = true,
+      ['termux-notification'] = true, ['termux-notification-remove'] = true }, function()
+      -- An empty configuration adopts ~/storage/music ...
+      local weiwei = fresh_weiwei({})
+      assert(#weiwei.config.library.directories == 1
+        and weiwei.config.library.directories[1] == home .. '/storage/music',
+        'the phone music directory was not adopted')
+      -- ... an explicit directory always wins ...
+      local own = home .. '/own'
+      python_mkdir(own)
+      local explicit = fresh_weiwei({ library = { directories = { own } } })
+      assert(#explicit.config.library.directories == 1 and explicit.config.library.directories[1] == own)
+      -- ... and `termux.library_directories = {}` switches the detection off.
+      local opted_out = fresh_weiwei({ termux = { library_directories = {} } })
+      assert(#opted_out.config.library.directories == 0, 'auto-detection ignored the opt-out')
+
+      -- Playback on the phone takes the wake lock and shows the track.
+      local directory = fixture_directory()
+      write(directory .. '/song.mp3', id3v2({ TIT2 = 'Đèn Biển', TPE1 = 'Ca sĩ', TLEN = '215000' }))
+      local player_seat = fresh_weiwei({ library = { directories = { directory } }, player = { backend = 'stub' } })
+      -- `fresh_weiwei` drops the cached modules, so the platform instance the
+      -- player will use is only available after it: install the runner now.
+      local platform = require('weiwei.platform')
+      platform.set_runner(capture)
+      local track = player_seat.library.tracks()[1]
+      assert(player_seat.play_track(track))
+      assert(platform.wake_lock_held(), 'playback must hold the wake lock')
+      assert(calls[1] == 'termux-wake-lock', calls[1])
+      assert(calls[2]:find('termux-notification', 1, true), 'no now-playing notification')
+      assert(calls[2]:find('Đèn Biển', 1, true), calls[2])
+      player_seat.player.stop()
+      assert(platform.wake_lock_held() == false, 'stopping must release the wake lock')
+      assert(calls[#calls] == 'termux-wake-unlock', calls[#calls])
+      player_seat.shutdown()
+      assert(calls[#calls]:find('termux-notification-remove', 1, true), calls[#calls])
+    end)
+  end)
+  -- Reset the instance the plugin actually used (the last `fresh_weiwei`).
+  local current = require('weiwei.platform')
+  current.reset()
+  current.set_runner(nil)
+end)
+
+test('health and the platform report describe a Termux device without failing', function()
+  local home = python_mkdtemp('weiwei-report-')
+  python_mkdir(home .. '/storage/music')
+  with_env({ PREFIX = TERMUX_ENV.PREFIX, TERMUX_VERSION = '0.118.3', HOME = home }, function()
+    -- mpv/yt-dlp/ffmpeg/curl are "missing" here, so the report has to explain
+    -- exactly which packages to install instead of failing.
+    with_executables({ ['termux-wake-lock'] = true, ['termux-wake-unlock'] = true }, function()
+      local weiwei = fresh_weiwei({})
+      local report = require('weiwei.health').check()
+      local text = table.concat(report, '\n')
+      assert(text:find('## Termux / Android', 1, true), text)
+      assert(text:find('Termux session', 1, true))
+      assert(text:find(home .. '/storage/music', 1, true), 'the music directory is missing from the report')
+      assert(text:find('pkg install -y mpv yt-dlp ffmpeg curl', 1, true), text)
+      assert(text:find('termux-api', 1, true), 'the notification hint is missing')
+
+      local info = weiwei.show_platform()
+      assert(info.termux == true and info.storage == true)
+      assert(info.install_command == 'pkg install -y mpv yt-dlp ffmpeg curl')
+      assert(#info.music_directories == 1)
+      local health = weiwei.health()
+      assert(health.platform.termux == true and health.platform.name == 'termux')
+    end)
+  end)
 end)
 
 -- -------------------------------------------------------------- interface --

@@ -1,6 +1,19 @@
 # Build and installation
 
-hikari builds on POSIX Linux/macOS; this change was built/tested on Linux.
+hikari builds on POSIX Linux/macOS and on Termux/Android; this change was
+built/tested on Linux (the Termux paths are covered by
+`tests/installer.test.cjs` and the Lua model suite, and are documented for a
+device run in [`TERMUX.md`](TERMUX.md)). On a phone the entry point is the
+dependency-free bootstrap, which checks/installs the Termux packages, requests
+shared-storage access and then runs this same installer:
+
+```sh
+sh scripts/install/termux.sh --all      # or: make termux
+sh scripts/install/termux.sh --check    # report only (make termux-check)
+```
+
+Termux resolves `CC=clang` and `AR=llvm-ar` automatically; an explicit `CC`/`AR`
+in the environment still wins.
 Install Git, Node >=22.12 with npm, Make, a C99 compiler, `ar`, Python >=3.8 and
 Neovim >=0.10 with your normal package manager first. Rust >=1.88 is optional:
 it only builds the napi-rs image-to-ASCII addon, and the built-in TypeScript

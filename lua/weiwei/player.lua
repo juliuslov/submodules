@@ -9,6 +9,7 @@
 --     no audio program is installed, so the interface stays usable.
 local util = require('weiwei.util')
 local state = require('weiwei.state')
+local platform = require('weiwei.platform')
 
 local M = {}
 
@@ -60,6 +61,16 @@ function M.create(config, options)
   end
   player.emit = emit
 
+  --- Android suspends background work unless a wake lock is held, so the lock
+  --- follows the player state: taken as soon as a track loads, released when
+  --- playback stops or the player closes. On every other platform (and with
+  --- `termux.wake_lock = 'never'`) this is a no-op.
+  local function set_wake_lock(enabled)
+    local ok, reason = platform.wake_lock(enabled, { config = config })
+    if not ok and reason and enabled then util.log('debug', 'wake lock: ' .. reason) end
+    return ok
+  end
+
   local function handle(event, payload)
     if event == 'time' then
       player.position_ms = payload.position_ms or 0
@@ -74,9 +85,11 @@ function M.create(config, options)
       util.log('debug', 'player: ' .. tostring(payload.message))
     elseif event == 'end' then
       player.status = 'ended'
+      set_wake_lock(false)
       emit('ended')
     elseif event == 'error' then
       player.status = 'error'
+      set_wake_lock(false)
       emit('error', { error = payload.message })
     end
   end
@@ -105,12 +118,14 @@ function M.create(config, options)
         track.stream_url = url
         backend:load(url, { start_paused = autoplay == false, volume = player.volume, duration_ms = track.duration_ms })
         player.status = autoplay == false and 'paused' or 'playing'
+        set_wake_lock(true)
         emit('loaded')
         return true
       end)
     end
     backend:load(source, { start_paused = autoplay == false, volume = player.volume, duration_ms = track.duration_ms })
     player.status = autoplay == false and 'paused' or 'playing'
+    set_wake_lock(true)
     emit('loaded')
     return true
   end
@@ -136,6 +151,7 @@ function M.create(config, options)
     backend:stop()
     player.status = 'stopped'
     player.position_ms = 0
+    set_wake_lock(false)
     emit('stop')
   end
 
@@ -177,6 +193,7 @@ function M.create(config, options)
   function player.close()
     backend:close()
     player.status = 'idle'
+    set_wake_lock(false)
     emit('close')
   end
 

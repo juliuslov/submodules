@@ -54,6 +54,15 @@ def weiwei_vim(runtime, tmp_root):
     globals_.python_stdpath = lambda which: tmp_root if which == 'cache' else tmp_root
     globals_.python_notify = lambda message, *rest: _notifications.append(str(message))
     globals_.python_dkjson = str(ROOT / 'vendor/dkjson/dkjson.lua')
+    # Env for the `vim.env` model: the phone-side tests flip PREFIX/TERMUX_VERSION
+    # and the platform module has to see them, exactly like on a device.
+    # uname strings: the platform module treats an Android-y release/version as a
+    # Termux signal, so the tests can pretend to be a phone kernel.
+    globals_.python_uname = runtime.table_from({'sysname': 'Linux', 'release': os.uname().release, 'version': os.uname().version})
+    globals_.python_env = runtime.table_from({
+        name: value for name, value in os.environ.items()
+        if name in ('HOME', 'PATH', 'PREFIX', 'TERMUX_VERSION', 'TERMUX_PREFIX', 'LANG', 'TMPDIR')
+    })
 
 weiwei_lua = LuaRuntime(unpack_returned_tuples=True)
 weiwei_lua.execute("package.path = ... .. '/lua/?.lua;' .. ... .. '/lua/?/init.lua;' .. package.path", str(ROOT), str(ROOT))
@@ -62,12 +71,30 @@ with tempfile.TemporaryDirectory() as weiwei_tmp:
     weiwei_lua.execute('''
       vim = {
         g = {}, o = { lines = 44, columns = 140, background = 'dark' },
+        env = python_env,
+        -- Neovim returns vim.NIL (a userdata) for unset variables; the model uses
+        -- a sentinel table so `type(value) == 'string'` is false, like on a device.
+        NIL = setmetatable({}, { __tostring = function() return 'vim.NIL' end }),
+        uv = { os_uname = function()
+          return { sysname = python_uname.sysname, release = python_uname.release, version = python_uname.version }
+        end },
         fn = {
+          getenv = function(name)
+            local value = python_env[name]
+            if value == nil then return vim.NIL end
+            return value
+          end,
           readdir = python_readdir, isdirectory = python_isdirectory, mkdir = python_mkdir,
           executable = python_executable, stdpath = python_stdpath,
+          isdirectory = python_isdirectory,
           getftype = function() return '' end, exists = function() return 1 end,
-          has = function() return 1 end, expand = function(value) return value end,
-          getenv = function() return nil end,
+          has = function(name)
+            -- Only the Neovim feature checks are true (health.lua asks for
+            -- nvim-0.10); the OS feature flags stay false, like on Linux.
+            if type(name) == 'string' and name:match('^nvim') then return 1 end
+            return 0
+          end,
+          expand = function(value) return value end,
           input = function() return '' end,
           sha256 = function(value) return string.rep('a', 64) end,
           filereadable = function(path)

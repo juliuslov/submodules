@@ -53,6 +53,28 @@ function M.check()
     add_binaries('- WARN no audio backend: playback controls and lyrics sync work against the stub clock only')
   end
 
+  -- Termux/Android block: only on a phone, where the environment is different
+  -- enough to be worth stating explicitly (shared storage, wake lock, termux-api).
+  local info = health.platform
+  if info and info.termux then
+    local add_termux = section(report, 'Termux / Android')
+    add_termux('- OK Termux session' .. (info.prefix and (' (PREFIX=' .. info.prefix .. ')') or ''))
+    if info.storage then
+      add_termux(tick(#info.music_directories > 0, 'shared storage',
+        #info.music_directories > 0 and table.concat(info.music_directories, ', ')
+          or 'no music directory found (create ~/storage/music)'))
+    else
+      add_termux('- WARN shared storage is not set up: run termux-setup-storage, then :WeiWeiLibrary ~/storage/music')
+    end
+    add_termux(tick(info.binaries['termux-wake-lock'] == true, 'wake lock',
+      info.binaries['termux-wake-lock'] and '(playback continues with the screen off)'
+        or '(termux-wake-lock is missing; reinstall termux-tools)'))
+    add_termux(tick(info.binaries['termux-notification'] == true, 'termux-api',
+      info.binaries['termux-notification'] and '(now-playing notification available)'
+        or '(install the termux-api package and the Termux:API app for notifications)'))
+    if info.install_command then add_termux('- WARN install with: ' .. info.install_command) end
+  end
+
   local add_lyrics = section(report, 'Lyrics providers')
   for _, provider in ipairs(health.lyrics) do
     local detail = provider.available and ('(' .. (provider.description or '') .. ')') or ('(' .. tostring(provider.reason) .. ')')

@@ -153,6 +153,11 @@ command('WeiWeiHealth', function()
   if module then module.show_health() end
 end, { desc = 'Show a WeiWei diagnostics report' })
 
+command('WeiWeiTermux', function()
+  local module = weiwei()
+  if module then module.show_platform() end
+end, { desc = 'Show the Android/Termux report (storage, wake lock, packages)' })
+
 command('WeiWeiStatus', function()
   local module = weiwei()
   if not module then return end

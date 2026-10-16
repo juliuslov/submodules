@@ -40,10 +40,19 @@ MOBI_RPATH = -Wl,-rpath,@loader_path
 else
 MOBI_LIB = build/libmobi.so
 MOBI_SHARED = -shared
-MOBI_RPATH = -Wl,-rpath,'$$ORIGIN'
+# `--enable-new-dtags` forces DT_RUNPATH, which is what the Android linker reads;
+# with classic DT_RPATH the Termux build of wiz-mobi would not find libmobi.so.
+MOBI_RPATH = -Wl,--enable-new-dtags -Wl,-rpath,'$$ORIGIN'
 endif
 .PHONY: mobi
 mobi: build/wiz-mobi libmobi-tools
+
+# Termux/Android: pure-shell bootstrap, safe to run before Node exists.
+.PHONY: termux termux-check
+termux:
+	sh scripts/install/termux.sh
+termux-check:
+	sh scripts/install/termux.sh --check
 build/libmobi-miniz.o: vendor/libmobi/src/miniz.c
 	mkdir -p build
 	$(CC) -std=c99 -O2 -fPIC -DMINIZ_NO_STDIO -DMINIZ_NO_ZLIB_COMPATIBLE_NAMES -DMINIZ_NO_TIME -DMINIZ_NO_ARCHIVE_APIS -DMINIZ_NO_ARCHIVE_WRITING_APIS -c $< -o $@

@@ -83,6 +83,15 @@ local defaults = {
     karaoke = { lead_ms = 180, word_wipe = true },
     keymaps = {},
   },
+  -- Android/Termux. Termux needs a wake lock to keep playing once the screen
+  -- turns off, and an optional now-playing notification through termux-api.
+  -- `auto` means "only on Termux, only when the tool is installed".
+  termux = {
+    wake_lock = 'auto', -- auto | always | never
+    notification = 'auto', -- auto | true | false
+    -- nil = auto-detect (~/storage/music, ~/storage/shared/Music, ~/Music).
+    library_directories = nil,
+  },
   -- Diagnostics.
   log = { level = 'warn', path = nil }, -- debug | info | warn | error
 }
@@ -119,6 +128,7 @@ local optional = {
   ['player.mpv.socket'] = true,
   ['stream.download_directory'] = true,
   ['ui.accent'] = true,
+  ['termux.library_directories'] = true,
 }
 
 local function unknown_keys(patch, known, path, errors)
@@ -167,6 +177,22 @@ local validators = {
   end,
   ['lyrics.retries'] = function(value)
     return type(value) == 'number' and value >= 0 and value <= 5, 'must be between 0 and 5'
+  end,
+  ['termux.wake_lock'] = function(value)
+    return util.contains({ 'auto', 'always', 'never' }, value), 'must be auto, always or never'
+  end,
+  ['termux.notification'] = function(value)
+    if value == true or value == false or value == 'auto' then return true end
+    return false, 'must be auto, true or false'
+  end,
+  ['termux.library_directories'] = function(value)
+    -- nil means "auto-detect on Termux"; an empty list is the explicit opt-out.
+    if value == nil then return true end
+    if type(value) ~= 'table' then return false, 'must be a list of directories' end
+    for _, directory in ipairs(value) do
+      if type(directory) ~= 'string' or directory == '' then return false, 'entries must be non-empty strings' end
+    end
+    return true
   end,
   ['log.level'] = function(value)
     return util.contains({ 'debug', 'info', 'warn', 'error' }, value), 'must be debug, info, warn or error'

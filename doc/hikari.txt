@@ -17,13 +17,25 @@ name and Lua namespace are hikari. The implementation is on the open PR branch
 arena/a6373a3d-submodules until merged.
 
 Requirements: Neovim >= 0.10, Node >= 22.12, npm, C99 compiler, Make, ar,
-and Python >= 3.8. Supported platform family: POSIX Linux/macOS (Linux tested).
-Optional extended conversion requires a separately installed Calibre ebook-convert.
+and Python >= 3.8. Supported platform family: POSIX Linux/macOS and
+Termux/Android (Linux tested). Optional extended conversion requires a
+separately installed Calibre ebook-convert.
 
 Initialize/build in the plugin checkout: >sh
     npm ci
     npm run build
 <
+
+On Termux/Android, use the dependency-free bootstrap instead; it checks and
+installs the Termux packages, asks for shared-storage access and then runs the
+same build: >sh
+    sh scripts/install/termux.sh --all      " or: make termux
+    sh scripts/install/termux.sh --check    " report only
+<
+Termux resolves CC=clang and AR=llvm-ar automatically. Keep the checkout inside
+Termux's home directory: shared storage is mounted noexec, so the compiled
+helpers cannot run from there (music and books may live on shared storage).
+See docs/TERMUX.md in the repository for the device walkthrough.
 Use the lazy.nvim specification in examples/lazy.lua. It explicitly sets
 name = 'hikari' and main = 'hikari', without any installer.nvim dependency.
 For a manual native-package installation, clone the repository under

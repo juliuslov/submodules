@@ -351,6 +351,49 @@ conclusions are the implementation contract.
   ordering, word-level highlighting, translation/romanisation display and
   karaoke behaviour — and re-implemented from the format specifications above.
 
+### Termux / Android (2026-10-16)
+
+* [Termux packages](https://github.com/termux/termux-packages) — the repository
+  names used by the bootstrap and the docs are `neovim` (binary `nvim`),
+  `nodejs-lts` (binary `node`), `git`, `make`, `clang`, `python` (binary
+  `python3`), `curl`, `mpv`, `yt-dlp`, `ffmpeg`, `termux-api` (binary
+  `termux-notification`), `rust` (binary `cargo`) and `ripgrep` (binary `rg`).
+  `termux-wake-lock`/`termux-wake-unlock` ship with `termux-tools`, which is part
+  of the base installation, so the wake lock needs no extra package. Community
+  guides agree that `termux-api` needs **both** the package and the Termux:API
+  app, otherwise the helpers fail; yt-dlp is available as a package but is kept
+  fresh with `pip install -U yt-dlp`, which is why it is reported rather than
+  hard-required.
+* **Detection.** Termux exports `PREFIX=/data/data/com.termux/files/usr` and
+  `TERMUX_VERSION`; its Node builds report `process.platform === 'android'`. The
+  Android kernel itself looks like Linux (`uname -s` = `Linux`), so the prefix and
+  the version variable are the authoritative signals, with the kernel release
+  string (`android13-5.15…`) as a fallback on the Lua side.
+* **Toolchain names.** Termux ships `clang` and `llvm-ar` (binutils is not
+  installed by default), so the installer resolves the C compiler/archiver per
+  platform instead of assuming `cc`/`ar`, while explicit `CC`/`AR` still win.
+* **Dynamic linking.** The Android linker honours `DT_RUNPATH` but ignores the
+  legacy `DT_RPATH`, and lld only emits `DT_RUNPATH` on request in some
+  configurations, so the libmobi rpath link is built with
+  `-Wl,--enable-new-dtags`. Without it `build/wiz-mobi` would fail to find
+  `build/libmobi.so` on the device and fall back to a missing-library error.
+* **Storage.** Android's shared storage is only reachable after
+  `termux-setup-storage`, which creates `~/storage/{music,shared,downloads,…}`.
+  Those volumes are mounted `noexec`, so the plugin documents keeping the
+  checkout in the Termux home directory while music and books may live on shared
+  storage.
+* [esbuild](https://www.npmjs.com/package/@esbuild/android-arm64) ships
+  `@esbuild/android-arm64` (verified: 0.28.2 is published), which is the package
+  npm selects for `process.platform === 'android'`, so `npm ci` and the `dist/`
+  build work on the phone without cross-compilation. The napi-rs addon likewise
+  targets `aarch64-linux-android` with no extra flags (see the ASCII section
+  above); `rust` is optional and only replaces the built-in renderer.
+* **Background playback.** Android suspends background work without a wake lock,
+  which is why WeiWei holds `termux-wake-lock` while a track is loaded and
+  releases it on stop/close, and why the docs point at the *Unrestricted* battery
+  setting. Android's lockscreen media panel is not available to terminal apps, so
+  the now-playing surface is a Termux:API notification plus the in-editor view.
+
 ### Playback and streaming
 
 * [mpv JSON IPC](https://mpv.io/manual/master/#json-ipc) — `--input-ipc-server=<path>`

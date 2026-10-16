@@ -19,6 +19,7 @@ local queue_module = require('weiwei.queue')
 local search_module = require('weiwei.search')
 local player_module = require('weiwei.player')
 local lyrics_agent = require('weiwei.lyrics.agent')
+local platform = require('weiwei.platform')
 local lyrics_model = require('weiwei.lyrics.model')
 local stream = require('weiwei.stream')
 
@@ -104,6 +105,23 @@ function M.setup(options)
       end
     end
   end
+  -- Termux can only reach the phone's shared storage after
+  -- `termux-setup-storage`; when the user configured nothing, those music
+  -- directories are the sensible default instead of an empty library.
+  if #config.library.directories == 0 then
+    -- `termux.library_directories = {}` is the explicit opt-out; nil means
+    -- "detect the phone's music folders on Termux".
+    local directories = config.termux.library_directories
+    if directories == nil then directories = platform.default_library_directories() end
+    if #directories > 0 then
+      for _, directory in ipairs(directories) do
+        config.library.directories[#config.library.directories + 1] = directory
+      end
+      util.log('info', 'library directories: ' .. table.concat(config.library.directories, ', '))
+    elseif platform.is_termux() and not platform.storage_available() then
+      util.log('info', 'Termux: run termux-setup-storage to add the phone music directories to the library')
+    end
+  end
   if #config.library.directories > 0 then
     M.reload_library()
   end
@@ -179,6 +197,12 @@ function M.play_track(track, autoplay)
   end
   state.patch({ player = { track = track } })
   M.load_lyrics(track)
+  -- Termux: mirror the current track into a notification, so the phone shows
+  -- what is playing. Harmless no-op everywhere else (or when termux-api is
+  -- missing), and the notification is removed again on shutdown.
+  platform.notify(track.title or 'WeiWei', table.concat({
+    track.artist or '', track.album or '',
+  }, ' · '), { mode = M.config.termux.notification, config = M.config, image = track.artwork })
   return true
 end
 
@@ -496,6 +520,9 @@ function M.open_help()
   lines[#lines + 1] = ''
   lines[#lines + 1] = '  Providers: ' .. table.concat(M.config.lyrics.providers, ', ')
   lines[#lines + 1] = '  Players: ' .. tostring(M.player and M.player.backend or 'not started')
+  if platform.is_termux() then
+    lines[#lines + 1] = '  Termux: :WeiWeiTermux for storage, packages and the wake lock'
+  end
   local buffer = ui.scratch('keys', lines, 'weiwei-keys')
   if buffer and vim and vim.api then vim.api.nvim_set_current_buf(buffer) end
   return buffer
@@ -518,10 +545,65 @@ function M.show_health()
   for _, provider in ipairs(health.lyrics) do
     add('provider ' .. provider.name, provider.available and 'ready' or 'unavailable', provider.reason)
   end
+  local info = health.platform
+  if info and info.termux then
+    add('platform', info.name, info.prefix)
+    add('storage', info.storage and 'readable' or 'not set up', info.storage and table.concat(info.music_directories, ', ') or 'run termux-setup-storage')
+    add('wake lock', info.binaries['termux-wake-lock'] and 'available' or 'missing')
+    add('notifications', info.binaries['termux-notification'] and 'available' or 'missing (pkg install termux-api)')
+    if info.install_command then add('install', info.install_command) end
+  end
   local ui = require('weiwei.ui.init')
   local buffer = ui.scratch('health', lines, 'weiwei-health')
   if buffer and vim and vim.api then vim.api.nvim_set_current_buf(buffer) end
   return health
+end
+
+--- Full Termux/Android report (`:WeiWeiTermux`).
+---
+--- A phone is a different environment from a desktop, so this prints the facts
+--- that decide whether the setup works: whether hikari sees Termux at all, which
+--- shared-storage directories the library is actually scanning, whether the
+--- wake lock and termux-api are present, and the exact `pkg install` line for
+--- whatever is missing.
+function M.show_platform()
+  local info = platform.info()
+  local lines = { 'WeiWei platform report', '' }
+  local function add(label, value, detail)
+    lines[#lines + 1] = string.format('  %-18s %s%s', label, tostring(value), detail and ('  ' .. tostring(detail)) or '')
+  end
+  add('platform', info.name)
+  add('termux', info.termux and 'yes' or 'no', info.prefix and ('PREFIX=' .. info.prefix) or nil)
+  add('home', info.home or 'unknown')
+  add('shared storage', info.storage and 'readable' or 'not set up',
+    info.storage and info.storage_root or 'run termux-setup-storage, then :WeiWeiLibrary ~/storage/music')
+  if #info.music_directories > 0 then
+    add('music', table.concat(info.music_directories, ', '))
+  else
+    add('music', 'none found')
+  end
+  if M.config then
+    local libraries = M.config.library.directories
+    add('library', #libraries > 0 and table.concat(libraries, ', ') or 'no directories configured')
+    add('wake lock', tostring(M.config.termux.wake_lock),
+      platform.wake_lock_held() and 'held' or (info.wake_lock and 'available' or 'termux-wake-lock missing'))
+    add('notification', tostring(M.config.termux.notification),
+      info.notifications and 'termux-notification available' or 'termux-notification missing (pkg install termux-api)')
+  end
+  local available, absent = {}, {}
+  for _, binary in ipairs({ 'mpv', 'yt-dlp', 'ffmpeg', 'curl', 'nvim', 'node', 'python3' }) do
+    if info.binaries[binary] then available[#available + 1] = binary else absent[#absent + 1] = binary end
+  end
+  add('found', #available > 0 and table.concat(available, ', ') or 'none')
+  if #absent > 0 then add('missing', table.concat(absent, ', ')) end
+  if info.install_command then add('install', info.install_command) end
+  lines[#lines + 1] = ''
+  lines[#lines + 1] = '  Playback: mpv streams files and URLs; yt-dlp resolves online sources.'
+  lines[#lines + 1] = '  Background audio keeps running while the wake lock is held.'
+  local ui = require('weiwei.ui.init')
+  local buffer = ui.scratch('platform', lines, 'weiwei-platform')
+  if buffer and vim and vim.api then vim.api.nvim_set_current_buf(buffer) end
+  return info
 end
 
 --- Structured health report used by `:WeiWeiHealth` and `:checkhealth`.
@@ -536,6 +618,7 @@ function M.health()
     lyrics = is_ready() and lyrics_agent.describe(M.config) or {},
     cache = { directory = require('weiwei.cache').default_directory(), memory_entries = require('weiwei.cache').size() },
     http = require('weiwei.lyrics.http').backend(),
+    platform = platform.info(),
   }
   for _, binary in ipairs({ 'mpv', 'yt-dlp', 'ffmpeg', 'curl', 'node', 'python3' }) do
     report.binaries[binary] = (vim and vim.fn and vim.fn.executable and vim.fn.executable(binary) == 1) or false
@@ -577,6 +660,8 @@ end
 --- Stops playback and removes the workspace (used on VimLeavePre).
 function M.shutdown()
   if M.player then M.player.close() end
+  platform.wake_lock(false, { config = M.config })
+  platform.clear_notification()
   require('weiwei.ui.init').close()
   require('weiwei.ui.artwork').clear()
 end

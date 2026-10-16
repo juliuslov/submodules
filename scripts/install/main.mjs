@@ -3,7 +3,7 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { run, probe } from './runner.mjs';
-import { prerequisites, supported, MINIMUM_NODE } from './platform.mjs';
+import { prerequisites, supported, platformName, toolchain, termuxBuildHint, MINIMUM_NODE } from './platform.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const args = new Set(process.argv.slice(2));
@@ -17,24 +17,39 @@ Rust toolchain is present, the optional napi-rs ASCII addon.
 library is an in-repository copy, so no build step fetches sources.
 No sudo, OS package installs, remote scripts or automatic Calibre install.`);
   } else {
-    if (!supported()) throw new Error('hikari currently builds on POSIX Linux/macOS');
-    const tools = prerequisites();
-    for (const tool of tools) {
+    const platform = platformName();
+    if (!supported()) throw new Error('hikari builds on POSIX Linux/macOS and on Termux/Android');
+    if (platform === 'termux' || platform === 'android') {
+      const tools = toolchain();
+      console.log(`hikari: ${platform === 'termux' ? 'Termux' : 'Android'} detected (PREFIX=${process.env.PREFIX || 'unset'}); C compiler '${tools.cc}', archiver '${tools.ar}'`);
+    }
+    const toolReport = prerequisites();
+    for (const tool of toolReport) {
       const state = tool.ok ? 'OK' : tool.optional ? 'SKIP' : 'MISSING';
       console.log(`${state} ${tool.name}: ${tool.version || tool.executable}`);
     }
     // Rust is the only optional entry: the TypeScript ASCII renderer needs no
     // native toolchain, so its absence is reported, not fatal.
-    const missing = tools.filter(tool => !tool.ok && !tool.optional);
+    const missing = toolReport.filter(tool => !tool.ok && !tool.optional);
     if (missing.length) {
-      throw new Error(`Install the missing toolchain prerequisites, then rerun ./install.sh; CC/AR may be executable paths (Node >= ${MINIMUM_NODE.join('.')} is required).`);
+      // On Termux every missing build prerequisite is a `pkg install` away, so
+      // the error says exactly which packages to add instead of a generic hint.
+      const hint = (platform === 'termux' || platform === 'android') ? termuxBuildHint(missing) : null;
+      throw new Error(`Install the missing toolchain prerequisites, then rerun ./install.sh; CC/AR may be executable paths (Node >= ${MINIMUM_NODE.join('.')} is required).`
+        + (hint ? ` On Termux: ${hint} (or run sh scripts/install/termux.sh --packages).` : ''));
     }
-    for (const tool of tools.filter(tool => tool.ok === false && tool.optional)) {
+    for (const tool of toolReport.filter(tool => tool.ok === false && tool.optional)) {
       console.log(`hikari: ${tool.name} not found; the built-in TypeScript ASCII renderer will be used instead.`);
     }
     if (!args.has('--check')) {
       run('npm', ['ci', ...(args.has('--offline') ? ['--offline'] : [])], { cwd: root });
-      run('npm', ['run', 'build'], { cwd: root });
+      // The native pieces are compiled by make; Termux needs clang/llvm-ar
+      // names, and an explicit CC/AR in the environment wins.
+      const tools = toolchain();
+      run('npm', ['run', 'build'], {
+        cwd: root,
+        env: { ...process.env, CC: process.env.CC || tools.cc, AR: process.env.AR || tools.ar },
+      });
       if (args.has('--test')) {
         run('npm', ['test'], { cwd: root });
         const localPython = resolve(root, '.venv/bin/python');
@@ -47,6 +62,10 @@ No sudo, OS package installs, remote scripts or automatic Calibre install.`);
         run('nvim', ['--headless', '-u', 'NONE', '-i', 'NONE', '-l', resolve(root, 'scripts/helptags.lua')], { cwd: root, env: { ...process.env, HIKARI_PLUGIN_ROOT: root } });
       } else console.log('Neovim unavailable: help tags/headless editor tests were not run.');
       console.log('hikari build complete. Add this checkout to runtimepath and run :Hikari.');
+      if (platform === 'termux' || platform === 'android') {
+        console.log('Termux: run :checkhealth hikari / :checkhealth weiwei for a device report;');
+        console.log('Termux: WeiWei shares ~/storage/music by default and holds a wake lock while playing.');
+      }
     }
   }
 } catch (error) { console.error(`hikari installer: ${error.message}`); process.exitCode = 1; }
