@@ -32,9 +32,8 @@ build is deprecated and too old.
 # 1. Refresh the package index, then bootstrap the checkout.
 pkg update
 pkg install -y git
-git clone https://github.com/juliuslov/submodules
-cd submodules
-git checkout arena/a6373a3d-submodules   # until the work is merged
+git clone -b arena/a6373a3d-submodules https://github.com/juliuslov/submodules
+cd submodules                             # drop -b once the work is merged
 
 # 2. One command: installs the packages, asks for storage access, builds.
 sh scripts/install/termux.sh --all

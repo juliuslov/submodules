@@ -44,7 +44,8 @@ No proot, no root, no cross-compilation:
 
 ```sh
 pkg install -y git
-git clone https://github.com/juliuslov/submodules && cd submodules
+git clone -b arena/a6373a3d-submodules https://github.com/juliuslov/submodules
+cd submodules
 sh scripts/install/termux.sh --all
 ```
 
