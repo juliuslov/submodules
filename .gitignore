@@ -1,0 +1,10 @@
+.research/
+node_modules/
+dist/
+build/
+__pycache__/
+.venv/
+.ci/
+.cache/
+doc/tags
+services/ascii/native/target/

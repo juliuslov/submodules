@@ -1,0 +1,7 @@
+{
+  "document": "0123456789abcdef0123456789abcdef",
+  "progress": "12",
+  "percentage": 0.25,
+  "device": "Neovim",
+  "device_id": "my-stable-device-id"
+}

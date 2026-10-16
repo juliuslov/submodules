@@ -1,0 +1,25 @@
+# Packages the Termux bootstrap (scripts/install/termux.sh) knows how to check.
+#
+# Format: <package> <probe-binary> <required|optional>
+#   * the probe binary is what the bootstrap looks for with `command -v`, so a
+#     package whose binary is named differently is still detected correctly;
+#   * `required` entries are needed for the documented Termux feature set
+#     (reading ebooks, converting, and playing music);
+#   * `optional` entries are installed only with --optional/--all.
+#
+# The build-time toolchain (clang, make, python, git, nodejs) is checked again by
+# scripts/install/main.mjs, which is what actually compiles the native pieces;
+# this list is the phone-facing one and stays in sync with docs/TERMUX.md.
+neovim nvim required
+nodejs-lts node required
+git git required
+make make required
+clang clang required
+python python3 required
+curl curl required
+mpv mpv required
+yt-dlp yt-dlp required
+ffmpeg ffmpeg required
+termux-api termux-notification optional
+rust cargo optional
+ripgrep rg optional
