@@ -13,6 +13,7 @@
 #   sh scripts/install/termux.sh --test      # build, then run the test suites
 #   sh scripts/install/termux.sh --packages  # only the `pkg install` step
 #   sh scripts/install/termux.sh --storage   # only termux-setup-storage
+#   sh scripts/install/termux.sh --report    # copyable device report, changes nothing
 set -eu
 
 ROOT=$(CDPATH= cd -- "$(dirname -- "$0")/../.." && pwd)
@@ -25,6 +26,7 @@ SETUP_STORAGE=0
 BUILD=1
 INSTALLER_ARGS=''
 FORCE=0
+REPORT=0
 
 say() { printf '%s\n' "hikari/termux: $*"; }
 die() { printf '%s\n' "hikari/termux: $*" >&2; exit 1; }
@@ -41,6 +43,7 @@ hikari + WeiWei Termux bootstrap.
   --no-build     do not run the Node installer afterwards
   --test         pass --test to the installer (native/Python/Node/Lua suites)
   --offline      pass --offline to the installer (requires a warm npm cache)
+  --report       print a copyable device report (versions, storage, packages)
   --force        run even when Termux is not detected
   --help         this text
 
@@ -58,6 +61,7 @@ for argument in "$@"; do
     --no-build) BUILD=0 ;;
     --test) INSTALLER_ARGS="$INSTALLER_ARGS --test" ;;
     --offline) INSTALLER_ARGS="$INSTALLER_ARGS --offline" ;;
+    --report) REPORT=1; CHECK_ONLY=1 ;;
     --force) FORCE=1 ;;
     --help|-h) usage; exit 0 ;;
     *) die "unknown option: $argument (try --help)" ;;
@@ -146,6 +150,61 @@ else
       say "termux-setup-storage is unavailable; it ships with termux-tools"
     fi
   fi
+fi
+
+# --- device report -----------------------------------------------------------
+# One pasteable block for a bug report: `sh scripts/install/termux.sh --report`
+# changes nothing and never needs Node, Neovim or `pkg`.
+version_of() {
+  command -v "$1" >/dev/null 2>&1 || { printf 'not installed'; return 0; }
+  printf '%s' "$("$1" ${2:-} 2>&1 | head -n 1 || true)"
+}
+prop_of() {
+  command -v getprop >/dev/null 2>&1 || { printf 'n/a'; return 0; }
+  value=$(getprop "$1" 2>/dev/null || true)
+  [ -n "$value" ] && printf '%s' "$value" || printf 'n/a'
+}
+
+if [ "$REPORT" = 1 ]; then
+  say 'device report (copy everything below into the issue/chat)'
+  printf '\n--- hikari/termux report ---\n'
+  printf 'termux        %s\n' "${TERMUX_VERSION:-not detected}"
+  printf 'prefix        %s\n' "${PREFIX_VALUE:-unset}"
+  printf 'home          %s\n' "$HOME"
+  printf 'android       %s (sdk %s)\n' "$(prop_of ro.build.version.release)" "$(prop_of ro.build.version.sdk)"
+  printf 'device        %s %s\n' "$(prop_of ro.product.manufacturer)" "$(prop_of ro.product.model)"
+  printf 'kernel        %s\n' "$(uname -sr 2>&1 || true)"
+  printf 'arch          %s\n' "$(uname -m 2>&1 || true)"
+  printf 'shell         %s\n' "${SHELL:-unknown}"
+  printf 'checkout      %s\n' "$ROOT"
+  case "$ROOT" in "$HOME"/*) ;; *) printf 'warning       the checkout is outside %s (shared storage is noexec)\n' "$HOME" ;; esac
+  printf 'storage       %s\n' "$([ -d "$STORAGE" ] && printf 'granted (%s)' "$STORAGE" || printf 'not granted: run termux-setup-storage')"
+  printf '\nversions\n'
+  printf '  node        %s\n' "$(version_of node -v)"
+  printf '  npm         %s\n' "$(version_of npm -v)"
+  printf '  nvim        %s\n' "$(version_of nvim --version)"
+  printf '  python3     %s\n' "$(version_of python3 --version)"
+  printf '  git         %s\n' "$(version_of git --version)"
+  printf '  make        %s\n' "$(version_of make --version)"
+  printf '  clang       %s\n' "$(version_of clang --version)"
+  printf '  mpv         %s\n' "$(version_of mpv --version)"
+  printf '  yt-dlp      %s\n' "$(version_of yt-dlp --version)"
+  printf '  ffmpeg      %s\n' "$(version_of ffmpeg -version)"
+  printf '  curl        %s\n' "$(version_of curl --version)"
+  printf '\npackages (present|missing|optional from scripts/install/termux-packages.txt)\n'
+  while read -r package binary requirement; do
+    case "$package" in ''|'#'*) continue ;; esac
+    if command -v "$binary" >/dev/null 2>&1; then state=present
+    elif [ "$requirement" = optional ]; then state=optional
+    else state=missing; fi
+    printf '  %-9s %s\n' "$state" "$package"
+  done < "$PACKAGES"
+  [ -z "$missing_required" ] || printf '\ninstall       pkg install -y%s\n' "$missing_required"
+  if [ -f "$ROOT/build/wiz-mobi" ]; then printf 'build         build/wiz-mobi present\n'; else printf 'build         not built yet\n'; fi
+  printf '\ninside Neovim: :checkhealth hikari   :checkhealth weiwei   :WeiWeiTermux\n'
+  printf '               node dist/cli.cjs doctor\n'
+  printf '%s\n' '--- end report ---'
+  exit 0
 fi
 
 if [ "$CHECK_ONLY" = 1 ]; then

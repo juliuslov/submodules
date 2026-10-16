@@ -373,11 +373,13 @@ What the tests actually exercise:
   (neovim, nodejs-lts, mpv, clang…; termux-api/rust/ripgrep optional) and the
   binary names (`neovim`→`nvim`, `nodejs-lts`→`node`, `termux-api`→
   `termux-notification`).
-* **Bootstrap behaviour.** `--help`, `--check`, `--packages` and `--no-build`
+* **Bootstrap behaviour.** `--help`, `--check`, `--packages`, `--report` and `--no-build`
   are driven with a shadowed `pkg` that logs its arguments: `--check` reports and
   installs nothing, `--packages --no-build` runs exactly one `pkg install -y …`
-  for the missing required packages only (no optional ones), and outside Termux
-  the script refuses to guess.
+  for the missing required packages only (no optional ones), `--report` prints the
+  pasteable device block (versions, storage, package table, `pkg install` line)
+  with an empty `pkg` log afterwards, and outside Termux the script refuses to
+  guess.
 * **Lua device behaviour.** `lua/weiwei/platform.lua` is covered end to end:
   storage detection, `~/storage/music` + `~/storage/shared/Music` adoption as the
   default library (with explicit directories and the `{}` opt-out both winning),

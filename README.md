@@ -55,7 +55,9 @@ desktop install. WeiWei adopts `~/storage/music` (and `~/storage/shared/Music`)
 as its library, holds a `termux-wake-lock` while a track is loaded so audio
 survives the screen turning off, and can mirror the current track into a
 Termux:API notification. `:WeiWeiTermux` prints the device report, including the
-exact `pkg install` line for anything missing. Full walkthrough:
+exact `pkg install` line for anything missing, and
+`sh scripts/install/termux.sh --report` produces the same facts as one pasteable
+block. Full walkthrough:
 [`docs/TERMUX.md`](docs/TERMUX.md).
 
 See [`examples/lazy.lua`](examples/lazy.lua). `main = 'hikari'` makes setup

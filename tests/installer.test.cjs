@@ -66,7 +66,7 @@ test('the Termux bootstrap is valid POSIX shell that never changes anything in -
   const syntax = spawnSync('sh', ['-n', script], { encoding: 'utf8' });
   assert.equal(syntax.status, 0, syntax.stderr);
   const help = spawnSync('sh', [script, '--help'], { encoding: 'utf8' });
-  assert.equal(help.status, 0); assert.match(help.stdout, /--check/); assert.match(help.stdout, /--all/);
+  assert.equal(help.status, 0); assert.match(help.stdout, /--check/); assert.match(help.stdout, /--all/); assert.match(help.stdout, /--report/);
   const bogus = spawnSync('sh', [script, '--nonsense'], { encoding: 'utf8' });
   assert.equal(bogus.status, 1); assert.match(bogus.stderr, /unknown option/);
 
@@ -101,6 +101,18 @@ test('the Termux bootstrap is valid POSIX shell that never changes anything in -
   assert.ok(installed.length >= 1, 'no pkg invocation was recorded');
   assert.match(installed[0], /^install -y /);
   assert.doesNotMatch(installed.join(' '), /termux-api|ripgrep|cargo/, 'optional packages need --optional');
+
+  // --report is the one-block diagnostic a phone user pastes back: it must work
+  // without Node/Neovim/mpv and must not install anything either.
+  fs.rmSync(log, { force: true });
+  const report = spawnSync('sh', [script, '--report'], { encoding: 'utf8', env: termuxEnv });
+  assert.equal(report.status, 0, report.stderr);
+  assert.match(report.stdout, /--- hikari\/termux report ---/);
+  assert.match(report.stdout, /termux\s+0\.118\.3/);
+  assert.match(report.stdout, /packages \(present\|missing\|optional/);
+  assert.match(report.stdout, /:checkhealth weiwei/);
+  assert.match(report.stdout, /install\s+pkg install -y /);
+  assert.equal(fs.existsSync(log), false, '--report must not install anything');
   fs.rmSync(shadow, { recursive: true, force: true });
 });
 

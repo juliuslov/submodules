@@ -50,6 +50,7 @@ sh scripts/install/termux.sh --packages   # only the `pkg install` step
 sh scripts/install/termux.sh --storage    # only termux-setup-storage
 sh scripts/install/termux.sh --optional   # + termux-api, rust, ripgrep
 sh scripts/install/termux.sh --test       # build, then run the test suites
+sh scripts/install/termux.sh --report     # copyable device report, changes nothing
 make termux-check                         # same as --check
 ```
 
@@ -200,15 +201,19 @@ opens the result.
   syntax and its `--check`/`--packages` behaviour with a shadowed `pkg`, the Lua
   platform module (storage directories, wake lock, notification, health report)
   and the wake-lock lifecycle during playback — all covered by
-  `node --test tests/installer.test.cjs` and `.venv/bin/python tests/run_lua.py`.
+  `node --test tests/installer.test.cjs` and `.venv/bin/python tests/run_lua.py`
+  (including that `--report` and `--check` install nothing).
 * **On a device**: everything that needs Android itself — real `mpv` audio, the
   wake lock surviving a screen-off, `termux-setup-storage` permissions and
   Termux:API notifications.
 
-If something fails on the phone, these outputs identify almost every case:
+If something fails on the phone, `--report` is the single block worth sharing —
+Termux and Android versions, device/arch, storage state, every relevant version,
+the package table and the exact `pkg install` line, all without needing Node,
+Neovim or `pkg`:
 
 ```sh
-sh scripts/install/termux.sh --check     # packages, build prerequisites
+sh scripts/install/termux.sh --report    # start here: one pasteable block
 mpv --ao=help                            # available Android audio outputs
 node dist/cli.cjs doctor                 # native helpers and vendor engines
 ```
