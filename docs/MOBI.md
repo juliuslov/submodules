@@ -29,7 +29,7 @@ standard library plus the pinned KindleUnpack source; no pip package is needed.
 ```sh
 git submodule update --init --recursive
 npm ci
-npm run build                # existing Rust service still requires rustc
+npm run build                # C tools (libmobi, wiz-mobi), then dist/ bundles
 make test-mobi               # independent Python/C fixture tests
 npm run doctor               # inspect data.mobi and both new submodule flags
 ```
@@ -38,11 +38,11 @@ npm run doctor               # inspect data.mobi and both new submodule flags
 `build/libmobi.so` (Linux) or `build/libmobi.dylib` (macOS). Linux has been tested;
 macOS loader/build configuration is provided but not locally verified.
 
-For an EPUB/MOBI-only build without Rust:
+For a build of the C tools and the service bundles only, without touching the
+optional Rust addon:
 
 ```sh
 make native mobi
-npm run build:types
 node scripts/build.mjs
 ```
 

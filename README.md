@@ -14,8 +14,10 @@ the plugin's public name. The feature is on [PR #1](https://github.com/juliuslov
 
 ## Install with lazy.nvim
 
-Requirements: **Neovim 0.10+**, **Node 22+**, npm, C99 compiler, Make, `ar`,
-**Rust 1.70+**, **Python 3.8+**. POSIX Linux/macOS are targeted; Linux is tested.
+Requirements: **Neovim 0.10+**, **Node 22.12+**, npm, C99 compiler, Make, `ar`,
+**Python 3.8+**. **Rust 1.88+** is optional: it only builds the napi-rs
+image-to-ASCII addon, and the built-in TypeScript renderer covers the feature
+without it. POSIX Linux/macOS are targeted; Linux is tested.
 
 ```lua
 {
@@ -43,7 +45,7 @@ For a native-package installation, clone this branch under
 
 ```sh
 ./install.sh --check  # inspect prerequisites, no installs
-./install.sh          # submodules + npm ci + C/Rust/TypeScript + libmobi tools
+./install.sh          # submodules + npm ci + C tools + dist/ (+ addon if Rust)
 ./install.sh --test   # build and run tests; reports unavailable optional checks
 ```
 
@@ -98,7 +100,7 @@ See [installer/build details](docs/INSTALL.md).
 | `:HikariDoctor` | Installed runtime/native availability |
 | `:HikariEpubExport new.epub` | Export current buffer as a plain-text EPUB |
 | `:HikariLibrary /books` | Nonrecursive EPUB inventory |
-| `:HikariAscii image.png` | Rust image-to-ASCII scratch buffer |
+| `:HikariAscii image.png` | image-to-ASCII scratch buffer |
 
 `:Hikari open ...`, `:Hikari convert ...`, `:Hikari! convert ...`, and
 `:Hikari doctor` are equivalent dispatcher forms. Escape spaces in Ex arguments
@@ -177,7 +179,9 @@ Lua callbacks use `(error, data)`. `require('hikari.epub')`, `.mobi`, `.reader`,
 and [service protocol](docs/PROTOCOL.md).
 
 `HIKARI_ARCHIVE`, `HIKARI_ASCII`, `HIKARI_MOBI`, `HIKARI_PYTHON` override tool
-paths. Corresponding `WIZ_*` names still work. Set `vim.g.hikari_author` and
+paths; `HIKARI_ASCII_NATIVE` points at a prebuilt napi-rs ASCII addon and
+`HIKARI_CARGO` at a non-default Cargo executable. Corresponding `WIZ_*` names
+still work. Set `vim.g.hikari_author` and
 `vim.g.hikari_language` for buffer export metadata. KoSync remains explicitly
 configured, with no automatic account creation or progress uploads; see
 [KoSync configuration](docs/KOSYNC.md).
@@ -188,7 +192,7 @@ configured, with no automatic account creation or progress uploads; see
 | --- | --- | --- |
 | `vendor/miniz` | C | MIT, ZIP integrity policy |
 | `vendor/fflate` | TypeScript | MIT, EPUB ZIP read/write |
-| `vendor/stb` | Rust via C | MIT/public-domain upstream notices, image decoding |
+| `vendor/stb` | C | MIT/public-domain upstream notices, native image decoding for the addon |
 | `vendor/dkjson` | Lua | MIT, JSON fallback |
 | `vendor/libmobi` | C shared library | LGPL-3.0+, metadata and bounded text validation |
 | `vendor/kindleunpack` | Python subprocess | GPL-3.0, independent legacy decoder |

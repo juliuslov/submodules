@@ -1,8 +1,10 @@
 # Build and installation
 
 hikari builds on POSIX Linux/macOS; this change was built/tested on Linux.
-Install Git, Node >=22 with npm, Make, a C99 compiler, `ar`, Rust >=1.70,
-Python >=3.8 and Neovim >=0.10 with your normal package manager first.
+Install Git, Node >=22.12 with npm, Make, a C99 compiler, `ar`, Python >=3.8 and
+Neovim >=0.10 with your normal package manager first. Rust >=1.88 is optional:
+it only builds the napi-rs image-to-ASCII addon, and the built-in TypeScript
+renderer covers the feature without it.
 The installer checks prerequisites; it never uses sudo, installs OS packages,
 fetches remote shell scripts, or downloads Calibre.
 
@@ -15,14 +17,16 @@ fetches remote shell scripts, or downloads Calibre.
 ```
 
 `--check` is read-only. Normal installation initializes the six pinned Git
-submodules, runs `npm ci`, and builds the C archive checker, Rust ASCII service,
-libmobi shared library (including XML/OPF), `wiz-mobi`, `mobitool`, `mobimeta`,
-TypeScript vendor declarations and Node bundles. Generated output stays in
-ignored build/dist directories. `CC`, `AR` and `RUSTC` may be executable paths;
-installers do not support shell fragments in tool variables. npm setup/setup:check
-are aliases for the Node installer.
+submodules, runs `npm ci`, and builds the C archive checker, libmobi shared
+library (including XML/OPF), `wiz-mobi`, `mobitool`, `mobimeta` and the split
+Node bundles in `dist/`. The napi-rs ASCII addon is attempted when `cargo` is
+found and skipped with a notice otherwise. Generated output stays in ignored
+build/dist directories. `CC`, `AR`, `RUSTC` and `HIKARI_CARGO` may be executable
+paths; installers do not support shell fragments in tool variables. npm
+setup/setup:check are aliases for the Node installer.
 
-`--test` runs native/Python/Rust/Node and typechecking suites. If Lupa is installed,
+`--test` runs the native/Python/Node and typechecking suites (plus the Rust
+renderer unit tests through `make test-ascii` when a toolchain exists). If Lupa is installed,
 it also runs Lua 5.1 model tests. To enable these:
 
 ```sh

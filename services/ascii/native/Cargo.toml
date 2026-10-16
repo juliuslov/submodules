@@ -1,0 +1,38 @@
+[package]
+name = "hikari-ascii"
+version = "2.0.0"
+edition = "2021"
+rust-version = "1.88"
+description = "hikari image-to-ASCII renderer exposed to Node through napi-rs"
+license = "UNLICENSED"
+publish = false
+
+# A cdylib is what napi-rs loads from Node. `napi build --platform` names the
+# artifact hikari-ascii.<platform-arch-abi>.node, e.g.
+# hikari-ascii.linux-x64-gnu.node or hikari-ascii.android-arm64.node.
+# `rlib` is added so `cargo test` can link the unit tests in src/ (the .node
+# artifact itself is still the cdylib).
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# N-API 9 is available in every Node.js release this plugin supports
+# (package.json requires >= 22.12). The default features stay enabled because
+# `dyn-symbols` is what lets the addon resolve Node symbols at load time.
+napi = { version = "3", features = ["napi9"] }
+napi-derive = "3"
+
+[build-dependencies]
+napi-build = "2"
+# Compiles the pinned stb_image decoder (src/decode.c) against vendor/stb.
+cc = "1"
+
+[profile.release]
+lto = true
+strip = "symbols"
+
+[features]
+# Kept explicit so `cargo test` can run the renderer unit tests without a Node
+# runtime: the exported napi functions are still compiled, they are simply not
+# called.
+default = []

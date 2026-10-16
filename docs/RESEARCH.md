@@ -170,3 +170,47 @@ Actual pinned upstream sample books, not synthetic “KF8-looking” headers, ar
 used for KF8/HUFF/media/font conversion regressions. Linux clean build and model
 checks are recorded in the PR; no real Neovim or real Calibre executable was
 available in the development sandbox for this expansion.
+
+## napi-rs ASCII service and multi-file dist (2026-10-16)
+
+The standalone `rustc`-built `build/wiz-ascii` binary required a Rust toolchain
+that many targets (Termux tablets, minimal servers) do not have, so the service
+was rebuilt as an **optional napi-rs addon** with a built-in TypeScript renderer
+as the always-available path. Sources reviewed before writing the code:
+
+* [napi.rs — getting started](https://napi.rs/docs/introduction/getting-started):
+  napi-rs v3 scaffold (`napi new`), Rust >= 1.88, output naming
+  `<binaryName>.<platform-arch-abi>.node` plus `index.js`/`index.d.ts`, and the
+  root-package + per-platform-package distribution model.
+* [napi.rs — CLI build](https://napi.rs/docs/cli/build): `napi build --platform
+  --release --strip --no-js --manifest-path … --output-dir build`; `--dts`,
+  `--esm`, `--target`, `--use-napi-cross` (Linux glibc), `-x` (cargo-zigbuild /
+  cargo-xwin for musl and Windows). The addon uses `--no-js` because
+  `services/ascii/backends/native.ts` owns resolution and loading.
+* [napi.rs — cross build](https://napi.rs/docs/cross-build): decision matrix.
+  Android/Termux targets (`aarch64-linux-android`, `armv7-linux-androideabi`)
+  need no cross flag, which is why they are listed in `package.json`
+  `napi.targets` next to the desktop triples.
+* [napi-rs/package-template](https://github.com/napi-rs/package-template):
+  reviewed `Cargo.toml` (`napi` 3, `napi-derive` 3, `napi-build` 2,
+  `crate-type = ["cdylib"]`, `[profile.release] lto = true, strip = "symbols"`),
+  `build.rs` (`napi_build::setup()`), `src/lib.rs` (`#[napi]` exports) and
+  `package.json` (`napi.binaryName`, `napi.targets`). The crate mirrors these
+  shapes; the pinned `vendor/stb` decoder stays in C through `cc` and is called
+  over a two-function FFI contract (`wiz_image_decode`, `wiz_image_free`).
+* [napi-rs](https://github.com/napi-rs/napi-rs) `Status`/`Error` API
+  (`Error::new(Status::GenericFailure, …)`, `bindgen_prelude` re-exports) was
+  checked against `crates/napi/src/{status,error,lib}.rs` at `main`, because the
+  addon cannot be compiled in this sandbox (no Rust toolchain; toolchain hosts
+  are blocked).
+* [Node.js 22.12.0 release notes](https://github.com/nodejs/node/releases/tag/v22.12.0)
+  and the `require(esm)` work it enabled: `require()` of an ESM graph is on by
+  default from 22.12.0 (20.19+ on the 20.x line) and throws
+  `ERR_REQUIRE_ASYNC_MODULE` when a module uses top-level await. `dist/` is ESM
+  with CommonJS shims, so the package now requires Node >= 22.12.
+
+The TypeScript renderer is not a substitute for review: its PNG/Netpbm/BMP
+decoders re-implement the bounded subset of stb behaviour used for terminal
+output (area-weighted sampling, alpha compositing onto the paper colour,
+`0.2126R + 0.7152G + 0.0722B` luminance, darkest-first ramp) and share the same
+limits as `limits.rs`. No network is used at build or run time.

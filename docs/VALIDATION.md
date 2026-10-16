@@ -45,6 +45,8 @@ included and no remote test execution is claimed.
 * `npm test` currently passes 11 C + 11 Rust + 35 Node tests. The Lua suite
   currently passes 17 tests plus real cross-language EPUB, Rust ASCII, and offline KoSync
   checksum requests. Empty default Lua options are covered explicitly.
+  *(Superseded: the standalone `rustc` ASCII binary and its 11 rustc tests were
+  later replaced by the optional napi-rs addon. See the last section.)*
 * `npm audit --omit=dev` reports zero vulnerabilities at this check.
 
 KoSync tests use only ephemeral loopback servers. No real account was created
@@ -150,7 +152,7 @@ Commands actually run:
 
 ```sh
 make clean
-RUSTC=/path/to/rustc ./install.sh --offline --test
+HIKARI_CARGO=/path/to/cargo ./install.sh --offline --test
 npm audit --omit=dev
 git diff --check
 ```
@@ -178,3 +180,58 @@ geometry, startup eligibility and window/buffer lifecycle. The real Neovim
 headless script was expanded, but **not run**: Neovim is unavailable in this
 sandbox. Real Calibre, physical e-ink/Kindle, terminal visual validation,
 EPUBCheck and macOS were not verified. No GitHub workflow was added.
+
+## 2026-10-16: napi-rs ASCII service, module split and multi-file dist
+
+This section supersedes the suite counts above. The standalone `rustc`-built
+`build/wiz-ascii` binary was replaced by an optional napi-rs addon plus a
+built-in TypeScript renderer, all services were split into modules, and `dist/`
+is now a multi-entry ESM build with CommonJS shims instead of two monolithic
+bundles.
+
+| Suite | Passed | Command |
+| --- | ---: | --- |
+| Native archive C/Python | 11 | `make test-native` |
+| MOBI C/Python | 15 | `make test-mobi` |
+| Node/TypeScript services, installer, ASCII backends | 81 (+1 skipped) | `node --test tests/*.test.cjs` |
+| Lua service model | 19 | `.venv/bin/python tests/run_lua.py` |
+| Lua reader/workspace model | 29 | same |
+| Lua hikari lifecycle/commands model | 15 | same |
+| **Total** | **170 passing, 1 skipped** | |
+
+The skipped case is the gated real-Calibre round trip
+(`HIKARI_TEST_REAL_CALIBRE=1`).
+
+Commands actually run in this environment:
+
+```sh
+rm -rf build dist && npm run build      # C tools + optional addon + dist/
+npm run typecheck                       # tsc --noEmit, strict
+npm run doctor                          # backend inventory + submodules
+npm run setup:check                     # prerequisites, exit 0
+node --test tests/*.test.cjs
+make test-native test-mobi
+.venv/bin/python tests/run_lua.py
+```
+
+Verified behaviours specific to this change:
+
+* `dist/` contains one entry per service (`cli`, `index`, `services/ascii`,
+  `services/kosync`, `services/mobi`, `services/archive`, `vendor/fflate`) plus
+  shared chunks; `require('dist/index.cjs')` and `node dist/cli.cjs doctor`
+  work through Node's `require(esm)` (Node >= 22.12).
+* ASCII backend selection reports `typescript` here because no addon is built:
+  `node dist/cli.cjs doctor` lists `process` (unset), `native` (not built) and
+  `typescript` (always available). The built-in decoders pass the PNG alpha,
+  Netpbm, option validation, decode-failure and CLI/RPC tests.
+* `node dist/cli.cjs ascii photo.ppm --width 2 --height 1 --ramp '@ '` and the
+  equivalent `rpc` request both return `{"text":"@ \n","columns":2,"rows":1}`.
+
+**Not verified here:** the Rust addon was **not compiled or unit-tested** in this
+sandbox — no Rust toolchain is installed and the toolchain download hosts are
+blocked (`static.rust-lang.org`, `deb.debian.org`), while the npm registry works.
+`services/ascii/native/` therefore contains reviewed-but-unbuilt Rust: the
+duplicated limits, option validation, stb FFI decode path and renderer tests
+must be built with `npm run build:ascii` (`cargo` + `@napi-rs/cli`) on a machine
+with Rust >= 1.88. Similarly, `tests/headless.lua` still needs a real Neovim,
+real Calibre remains uninstalled, and no macOS/Termux device run was possible.

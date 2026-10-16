@@ -1,15 +1,18 @@
-import importlib.util
 import json
 import os
 from pathlib import Path
 import struct
 import subprocess
+import sys
 import tempfile
 import unittest
 from mobi_fixture import make_mobi, make_hybrid
 
 ROOT = Path(__file__).resolve().parents[1]
 WORKER = ROOT / 'services/mobi/python/decode.py'
+sys.path.insert(0, str(ROOT / 'services/mobi/python'))
+
+from hikari_mobi.text import TextBook  # noqa: E402  (path prepared above)
 
 
 class MobiTests(unittest.TestCase):
@@ -116,10 +119,7 @@ class MobiTests(unittest.TestCase):
         self.assertNotEqual(self.invoke(make_mobi(raw), worker=True).returncode, 0)
 
     def test_large_chapter_split_does_not_cut_unicode(self):
-        spec = importlib.util.spec_from_file_location('mobi_worker', WORKER)
-        worker = importlib.util.module_from_spec(spec)
-        spec.loader.exec_module(worker)
-        parser = worker.TextBook()
+        parser = TextBook()
         text = '你好' * 200000
         parser.feed('<h1>' + '中' * 1365 + 'x</h1><p>' + text + '</p>')
         parser.finish_chapter()

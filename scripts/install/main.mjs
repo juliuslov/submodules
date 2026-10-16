@@ -3,18 +3,34 @@ import { fileURLToPath } from 'node:url';
 import { existsSync } from 'node:fs';
 import { resolve, dirname } from 'node:path';
 import { run, probe } from './runner.mjs';
-import { prerequisites, supported } from './platform.mjs';
+import { prerequisites, supported, MINIMUM_NODE } from './platform.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '../..');
 const args = new Set(process.argv.slice(2));
 try {
   for (const arg of args) if (!['--check', '--test', '--offline', '--help'].includes(arg)) throw new Error(`unknown installer option: ${arg}`);
   if (args.has('--help')) {
-    console.log('hikari installer: [--check] [--test] [--offline]\nBuilds all pinned native libraries/tools, Rust renderer and TypeScript services.\n--offline skips submodule fetch and uses npm ci --offline (requires populated caches).\nNo sudo, OS package installs, remote scripts or automatic Calibre install.');
+    console.log(`hikari installer: [--check] [--test] [--offline]
+Builds all pinned native libraries/tools, the TypeScript services and, when a
+Rust toolchain is present, the optional napi-rs ASCII addon.
+--offline skips submodule fetch and uses npm ci --offline (requires populated caches).
+No sudo, OS package installs, remote scripts or automatic Calibre install.`);
   } else {
     if (!supported()) throw new Error('hikari currently builds on POSIX Linux/macOS');
     const tools = prerequisites();
-    for (const tool of tools) console.log(`${tool.ok ? 'OK' : 'MISSING'} ${tool.name}: ${tool.version || tool.executable}`);
-    if (tools.some(tool => !tool.ok)) throw new Error('Install the missing toolchain prerequisites, then rerun ./install.sh; CC/AR/RUSTC may be executable paths.');
+    for (const tool of tools) {
+      const state = tool.ok ? 'OK' : tool.optional ? 'SKIP' : 'MISSING';
+      console.log(`${state} ${tool.name}: ${tool.version || tool.executable}`);
+    }
+    // Rust is the only optional entry: the TypeScript ASCII renderer needs no
+    // native toolchain, so its absence is reported, not fatal.
+    const missing = tools.filter(tool => !tool.ok && !tool.optional);
+    if (missing.length) {
+      throw new Error(`Install the missing toolchain prerequisites, then rerun ./install.sh; CC/AR may be executable paths (Node >= ${MINIMUM_NODE.join('.')} is required).`);
+    }
+    for (const tool of tools.filter(tool => tool.ok === false && tool.optional)) {
+      console.log(`hikari: ${tool.name} not found; the built-in TypeScript ASCII renderer will be used instead.`);
+    }
     if (!args.has('--check')) {
       if (!args.has('--offline')) run('git', ['submodule', 'update', '--init', '--recursive'], { cwd: root });
       run('npm', ['ci', ...(args.has('--offline') ? ['--offline'] : [])], { cwd: root });

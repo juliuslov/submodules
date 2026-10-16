@@ -4,6 +4,7 @@ CPPFLAGS += -Iservices/archive/include -Ivendor/miniz -Ibuild -D_POSIX_C_SOURCE=
 WARN = -Wall -Wextra -Wpedantic
 NATIVE = services/archive/src/main.c services/archive/src/inspect.c services/archive/src/path.c services/archive/src/json.c
 MINIZ = vendor/miniz/miniz.c vendor/miniz/miniz_zip.c vendor/miniz/miniz_tinfl.c vendor/miniz/miniz_tdef.c
+CARGO ?= cargo
 .PHONY: all native test-native clean
 all: native ascii mobi
 native: build/wiz-archive
@@ -14,26 +15,20 @@ build/wiz-archive: $(NATIVE) $(MINIZ) services/archive/include/archive_service.h
 	$(CC) -std=c99 $(CPPFLAGS) $(CFLAGS) $(WARN) $(NATIVE) $(MINIZ) -o $@
 test-native: native
 	python3 -m unittest discover -s tests -p 'test_archive.py' -v
-clean:
-	rm -rf build dist
 
-# No crates.io dependencies: Rust std + a small shim around pinned stb_image.
-RUSTC ?= rustc
-AR ?= ar
-ASCII_RS = services/ascii/src/main.rs services/ascii/src/image.rs services/ascii/src/render.rs
+# Image-to-ASCII is a napi-rs addon (services/ascii/native), and the build is
+# OPTIONAL: without a Rust toolchain, scripts/build-ascii.mjs reports how to get
+# the addon and the built-in TypeScript renderer in services/ascii/render/ keeps
+# the feature working. A toolchain that is present and fails still fails.
 .PHONY: ascii test-ascii
-ascii: build/wiz-ascii
-build/image_decode.o: services/ascii/native/decode.c vendor/stb/stb_image.h
-	mkdir -p build
-	$(CC) -std=c99 -O2 -Ivendor/stb -c $< -o $@
-build/libwiz_image.a: build/image_decode.o
-	$(AR) rcs $@ $<
-build/wiz-ascii: $(ASCII_RS) build/libwiz_image.a
-	$(RUSTC) --edition=2021 -D warnings -O services/ascii/src/main.rs -L native=build -l static=wiz_image -l m -o $@
-build/wiz-ascii-tests: $(ASCII_RS) build/libwiz_image.a
-	$(RUSTC) --edition=2021 -D warnings --test services/ascii/src/main.rs -L native=build -l static=wiz_image -l m -o $@
-test-ascii: ascii build/wiz-ascii-tests
-	build/wiz-ascii-tests
+ascii:
+	node scripts/build-ascii.mjs
+test-ascii:
+	@if command -v $(CARGO) >/dev/null 2>&1; then $(CARGO) test --manifest-path services/ascii/native/Cargo.toml; \
+	else printf '%s\n' 'hikari: cargo not installed; Rust renderer tests skipped (the TypeScript fallback is covered by node --test tests/ascii.*.test.cjs).'; fi
+
+clean:
+	rm -rf build dist services/ascii/native/target
 
 # Replaceable LGPL library with internal XML/OPF writer. DRM stays disabled.
 LIBMOBI_SRC = $(addprefix vendor/libmobi/src/,buffer.c compression.c debug.c index.c memory.c meta.c parse_rawml.c read.c structure.c util.c write.c opf.c xmlwriter.c)

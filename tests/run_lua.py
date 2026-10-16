@@ -81,4 +81,4 @@ with tempfile.TemporaryDirectory() as directory:
         assert(not err, err); assert(data.text:find('Written from Lua.', 1, true))
       end)
     ''')
-print('PASS: real Lua RPC for EPUB, Rust ASCII, bidirectional MOBI, and offline KoSync checksum')
+print('PASS: real Lua RPC for EPUB, ASCII renderer, bidirectional MOBI, and offline KoSync checksum')

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto';
 import { writeFileSync, unlinkSync, openSync, closeSync } from 'node:fs';
-import { zipSync, strToU8, type Zippable } from '../../../build/vendor/index.js';
+import { zipSync, strToU8, type Zippable } from 'fflate';
 import { xmlText } from './xml';
 import { inspectBytes } from './archive';
 import type { BookInput } from './types';

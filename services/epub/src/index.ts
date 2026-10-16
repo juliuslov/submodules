@@ -5,17 +5,14 @@ export { inspectArchive } from './archive';
 export { doctor } from './doctor';
 export type * from './types';
 
-export { imageToAscii } from '../../ascii/bridge';
-export type { AsciiOptions } from '../../ascii/bridge';
+export { imageToAscii, asciiBackend, asciiBackends } from '../../ascii';
+export type { AsciiBackend, AsciiBackendStatus, AsciiOptions, AsciiRender } from '../../ascii';
 
 export { KoSyncClient, DEFAULT_SERVER } from '../../kosync/client';
 export { partialMd5, filenameMd5, documentChecksum } from '../../kosync/checksum';
 export type { KoSyncConfig, ProgressUpdate, ProgressState } from '../../kosync/types';
 
-export { convertMobi, inspectMobi } from '../../mobi/convert';
-export { createMobiBytes } from '../../mobi/writer';
-export type { MobiInfo, ConversionResult, ConversionOptions } from '../../mobi/convert';
+export { convertMobi, inspectMobi, createMobiBytes, conversionFormats } from '../../mobi';
+export type { MobiInfo, ConversionResult, ConversionOptions } from '../../mobi';
 
-export { conversionFormats } from '../../mobi/formats';
-
-export { markupChapters as parseMobiMarkup } from '../../mobi/html-text';
+export { markupChapters as parseMobiMarkup } from '../../mobi';

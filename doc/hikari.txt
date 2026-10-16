@@ -16,7 +16,7 @@ The repository URL remains https://github.com/juliuslov/submodules ; its plugin
 name and Lua namespace are hikari. The implementation is on the open PR branch
 arena/fc59f9a1-submodules until merged.
 
-Requirements: Neovim >= 0.10, Node >= 22, npm, C99 compiler, Make, ar, Rust >= 1.70,
+Requirements: Neovim >= 0.10, Node >= 22.12, npm, C99 compiler, Make, ar,
 and Python >= 3.8. Supported platform family: POSIX Linux/macOS (Linux tested).
 Optional extended conversion requires a separately installed Calibre ebook-convert.
 
@@ -75,7 +75,7 @@ No service build, download, conversion or network request runs at startup.
 :HikariLibrary {directory}                            *:HikariLibrary*
     Nonrecursive local EPUB inventory/search service.
 :HikariAscii {image}                                  *:HikariAscii*
-    Render an image as ASCII using the Rust service.
+    Render an image as ASCII (native addon when built, built-in renderer otherwise).
 :HikariEpubExport {new.epub}                           *:HikariEpubExport*
     Export the current buffer as one plain-text EPUB chapter, without overwriting.
 
@@ -125,10 +125,12 @@ adding runtimepath manually. No global colorscheme is changed. Runtime env is
 passed through argv/JSON process calls, never shell interpolation.
 
 Set vim.g.hikari_author and vim.g.hikari_language for buffer-to-EPUB export.
-HIKARI_ARCHIVE / HIKARI_ASCII / HIKARI_MOBI override native executable paths.
+HIKARI_ARCHIVE / HIKARI_ASCII / HIKARI_MOBI override executable paths, and
+HIKARI_ASCII_NATIVE points at a prebuilt napi-rs image-to-ASCII addon.
 HIKARI_PYTHON overrides python3. HIKARI_CALIBRE overrides ebook-convert.
 The corresponding WIZ_* variables remain fallbacks. Defaults use the checkout's
-build/wiz-* binaries, whose internal filenames are preserved for compatibility.
+build/wiz-* binaries, whose internal filenames are preserved for compatibility;
+the ASCII addon is optional and the built-in renderer needs no Rust toolchain.
 
 ==============================================================================
 4. Lua API                                                   *hikari-api*

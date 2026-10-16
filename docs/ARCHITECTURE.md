@@ -16,8 +16,11 @@ The C checker has path validation, JSON escaping, ZIP policy/integrity checks,
 and CLI entry points in separate source files. It does not extract entries.
 The TS reader validates references inside the ZIP before reading XML. The TS
 writer only accepts plain text, escapes it into XHTML, and adds EPUB navigation
-and package metadata. `fflate` declarations are built separately with its
-upstream compiler settings; service code is checked with TypeScript `strict`.
+and package metadata. `fflate` is imported through the bare `fflate` specifier, which
+`scripts/build.mjs` aliases to the pinned `vendor/fflate` gitlink; the
+hand-written `services/vendor/fflate.d.ts` declares the small API subset used,
+so upstream code is never type-checked under `strict` and services never import
+a build artifact.
 
 Before TS decompression, the service bounds the input read and copies the bytes
 to a private temporary snapshot. `wiz-archive` validates that snapshot; TS then
@@ -52,23 +55,36 @@ these additions do not silently relicense all existing original code.
 
 ## Additional service paths
 
-* `services/ascii/src/*.rs`: std-only Rust image renderer and CLI. The pinned
-  `stb_image` dependency is linked through `native/decode.c`; no crates.io
-  resolution is needed. TS launches the binary using argv, not a shell.
-* `services/kosync/*.ts`: protocol client, validated requests, bounded HTTPS
-  responses, KOReader-compatible document checksums, environment-based CLI
-  credential loading. There are no requests at module import or startup.
+* `services/ascii/`: one module per concern — `options.ts`/`limits.ts` validate
+  the request, `io.ts` reads a bounded regular file, `render/` holds the pure
+  TypeScript decoders (PNG, Netpbm, BMP) plus sampling/luminance/ramp mapping,
+  and `backends/` picks between the optional napi-rs addon
+  (`services/ascii/native/`, Rust over the pinned `stb_image` C decoder),
+  the built-in renderer, and a user-supplied external CLI. The plugin talks to
+  it only through `dist/cli.cjs rpc`, never through a shell string.
+* `services/kosync/`: `credentials.ts` resolves and validates configuration,
+  `transport.ts` owns the bounded HTTPS request policy (media type, 128 KiB
+  response cap, manual redirects, deadlines, sanitized errors), `client.ts` maps
+  the four protocol operations, `validation.ts` checks bodies and
+  `checksum.ts` reproduces KOReader's document checksums. There are no requests
+  at module import or startup, and the CLI loads credentials from the
+  environment only.
 * `lua/hikari/{ascii,kosync}.lua`: companion APIs and commands.
   KoSync pulls display opaque progress only. Push commands require `!`.
 
 Tests for KoSync bind ephemeral loopback servers; they do not use public
-credentials or public services. Rust tests run through `make test-ascii`.
+credentials or public services. The Rust renderer tests run through
+`make test-ascii` when `cargo` exists, and their JavaScript-visible behaviour is
+covered either way by `node --test tests/ascii.*.test.cjs`.
 
 
 ## Native EPUB reading workspace
 
-`lua/hikari/reader/` separates terminal geometry, UTF-8 wrapping,
-window-scoped theme definitions and the asynchronous reader state machine.
+`lua/hikari/reader/` separates terminal geometry (`layout`), UTF-8 wrapping and
+text measurement (`text`), window-scoped theme definitions (`theme`),
+anti-ghosting caches (`refresh`), pane/buffer/window ownership (`panes`), pane
+content (`views`), buffer-local keymaps (`keys`), autocmds (`events`) and the
+asynchronous reader lifecycle (`init`).
 The generic diagnostics/ASCII `ui.show` API stays separate. `ui.open` delegates
 to the reader; no browser dependencies or mobile framework are introduced.
 

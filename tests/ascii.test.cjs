@@ -18,7 +18,7 @@ function chunk(type, data) {
   prefix.writeUInt32BE(data.length); suffix.writeUInt32BE((crc ^ 0xffffffff) >>> 0);
   return Buffer.concat([prefix, body, suffix]);
 }
-test('Rust ASCII bridge renders black and white, with preserved whitespace', async t => {
+test('ASCII renderer emits black and white cells, with preserved whitespace', async t => {
   const result = await imageToAscii(fixture(t), { width: 2, height: 1, ramp: '@ ' });
   assert.deepEqual(result, { text: '@ \n', columns: 2, rows: 1 });
 });
@@ -42,8 +42,10 @@ test('reject invalid options, corrupt images and missing files', async t => {
 });
 test('ASCII JSON RPC dispatch and standalone CLI', t => {
   const file=fixture(t);
-  const direct=spawnSync(path.resolve('build/wiz-ascii'),[file,'--width','2','--height','1','--ramp','@ '],{encoding:'utf8'});
-  assert.equal(direct.status,0,direct.stderr); assert.equal(direct.stdout,'@ \n');
+  // The standalone wiz-ascii binary was replaced by the napi-rs addon plus the
+  // built-in TypeScript renderer, so `dist/cli.cjs ascii` is the CLI now.
+  const direct=spawnSync(process.execPath,[path.resolve('dist/cli.cjs'),'ascii',file,'--width','2','--height','1','--ramp','@ '],{encoding:'utf8'});
+  assert.equal(direct.status,0,direct.stderr); assert.equal(JSON.parse(direct.stdout).data.text,'@ \n');
   const rpc=spawnSync(process.execPath,[path.resolve('dist/cli.cjs'),'rpc'],{
     input:JSON.stringify({action:'ascii',path:file,options:{width:2,height:1,ramp:'@ '}}),encoding:'utf8',
   });

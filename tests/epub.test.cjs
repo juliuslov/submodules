@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const api = require('../dist/index.cjs');
-const { zipSync, unzipSync, strToU8 } = require('../build/vendor/index.js');
+const { zipSync, unzipSync, strToU8 } = require('../dist/vendor/fflate.cjs');
 const spec = {
   title: 'Sách & <Books>', author: 'Nguyễn "An"', language: 'vi',
   identifier: 'urn:test:book', modified: '2026-10-15T00:00:00Z',

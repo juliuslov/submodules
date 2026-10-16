@@ -130,7 +130,7 @@ test('MOBI CLI and JSON RPC return structured conversion and inspection replies'
   assert.equal(result.status, 1); assert.equal(result.stdout, ''); assert.equal(JSON.parse(result.stderr).ok, false);
 });
 test('empty image-only EPUB spine entries are omitted, without losing other chapters', async t => {
-  const { zipSync, unzipSync, strToU8 } = require('../build/vendor/index.js');
+  const { zipSync, unzipSync, strToU8 } = require('../dist/vendor/fflate.cjs');
   const f = fixture(t), files = unzipSync(fs.readFileSync(f.epub));
   files['EPUB/chapter-1.xhtml'] = strToU8('<html xmlns="http://www.w3.org/1999/xhtml"><head><title>Cover</title></head><body></body></html>');
   files.mimetype = [files.mimetype, { level: 0 }];

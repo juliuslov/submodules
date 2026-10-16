@@ -1,6 +1,6 @@
 import { calibreBinary } from '../../mobi/calibre';
-import { mobiBinary, pythonBinary } from '../../mobi/convert';
-import { asciiBinary } from '../../ascii/bridge';
+import { mobiBinary, pythonBinary } from '../../mobi';
+import { asciiBackend, asciiBackends } from '../../ascii';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { join } from 'node:path';
@@ -9,9 +9,12 @@ export function doctor(): object {
   let archive: { available: boolean; version?: string; error?: string };
   try { archive = { available: true, version: execFileSync(archiveBinary(), ['--version'], { encoding: 'utf8', timeout: 5000 }).trim() }; }
   catch (err) { archive = { available: false, error: (err as Error).message }; }
-  let ascii: object;
-  try { ascii = { available: true, version: execFileSync(asciiBinary(), ['--version'], { encoding: 'utf8', timeout: 5000 }).trim() }; }
-  catch { ascii = { available: false, error: 'build the Rust ASCII service with make ascii' }; }
+  // Image-to-ASCII always reports available: the built-in TypeScript renderer
+  // needs no native toolchain. The backend list explains which one runs.
+  const asciiNative = asciiBackends().find(entry => entry.backend === 'native')!;
+  const ascii = { available: true, backend: asciiBackend(),
+    native: { available: asciiNative.available, detail: asciiNative.detail },
+    backends: asciiBackends() };
   let mobiNative: { available: boolean; version?: string; error?: string };
   let python: { available: boolean; version?: string; error?: string };
   try { mobiNative = { available: true, version: execFileSync(mobiBinary(), ['--version'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 }).trim() }; }

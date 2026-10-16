@@ -1,21 +1,37 @@
 {
   "name": "hikari.nvim-services",
-  "version": "1.1.0",
+  "version": "2.0.0",
   "description": "hikari: standalone Neovim EPUB and MOBI reader, ebook conversion, ASCII and KoSync services",
   "directories": {
     "doc": "docs",
     "test": "tests"
   },
   "scripts": {
-    "build:types": "tsc -p scripts/tsconfig.vendor.json",
-    "build": "make native ascii mobi && npm run build:types && node scripts/build.mjs",
-    "typecheck": "npm run build:types && tsc --noEmit",
+    "build:native": "make native mobi",
+    "build:ascii": "node scripts/build-ascii.mjs",
+    "build:dist": "node scripts/build.mjs",
+    "build": "npm run build:native && npm run build:ascii && npm run build:dist",
+    "typecheck": "tsc --noEmit",
+    "test:ascii": "node --test tests/ascii.*.test.cjs",
     "test": "npm run build && npm run typecheck && make test-native test-ascii test-mobi && node --test tests/*.test.cjs",
     "doctor": "node dist/cli.cjs doctor",
-    "build:ascii": "make ascii",
-    "build:mobi": "make mobi",
     "setup": "node scripts/install/main.mjs",
     "setup:check": "node scripts/install/main.mjs --check"
+  },
+  "napi": {
+    "binaryName": "hikari-ascii",
+    "targets": [
+      "x86_64-unknown-linux-gnu",
+      "aarch64-unknown-linux-gnu",
+      "armv7-unknown-linux-gnueabihf",
+      "x86_64-unknown-linux-musl",
+      "aarch64-unknown-linux-musl",
+      "x86_64-apple-darwin",
+      "aarch64-apple-darwin",
+      "x86_64-pc-windows-msvc",
+      "aarch64-linux-android",
+      "armv7-linux-androideabi"
+    ]
   },
   "repository": {
     "type": "git",
@@ -31,12 +47,13 @@
     "htmlparser2": "10.0.0"
   },
   "devDependencies": {
+    "@napi-rs/cli": "3.10.8",
     "@types/node": "22.20.5",
     "esbuild": "0.28.2",
     "typescript": "5.9.3"
   },
   "private": true,
   "engines": {
-    "node": ">=22"
+    "node": ">=22.12"
   }
 }

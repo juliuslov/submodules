@@ -1,11 +1,13 @@
 import { execFileSync } from 'node:child_process';
 import { constants, mkdtempSync, rmSync, writeFileSync, openSync, closeSync, fstatSync, readSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { resolve, join } from 'node:path';
-import { unzipSync } from '../../../build/vendor/index.js';
+import { join } from 'node:path';
+import { unzipSync } from 'fflate';
+import { ROOT } from '../../root';
 import { memberPath } from './paths';
 import type { Inventory } from './types';
-export const ROOT = resolve(__dirname, '..');
+// Re-exported for the services that resolved tool paths through this module.
+export { ROOT };
 export const MAX_ARCHIVE = 64 * 1024 * 1024;
 export function archiveBinary(): string { return process.env.HIKARI_ARCHIVE || process.env.WIZ_ARCHIVE || join(ROOT, 'build/wiz-archive'); }
 
