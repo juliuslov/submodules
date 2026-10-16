@@ -283,3 +283,62 @@ Verified behaviours specific to this change:
 
 **Not verified here:** real Calibre (uninstalled; the gated test stays skipped),
 real Neovim, and no macOS/Termux run.
+
+## 2026-10-16: WeiWei lyrics agents — AMLL TTML behaviour and the bugs it exposed
+
+Ran the new WeiWei Lua suite (27 tests) alongside the existing service, reader,
+hikari and RPC runtimes, after implementing the AMLL TTML behaviours documented
+in `docs/RESEARCH.md`:
+
+| Suite | Passed | Command |
+| --- | ---: | --- |
+| Lua service model | 19 | `.venv/bin/python tests/run_lua.py` |
+| Lua reader/workspace model | 29 | same |
+| Lua hikari lifecycle/commands model | 15 | same |
+| Lua WeiWei (config, library, queue, player, lyrics, streaming, UI) | 27 | same |
+| **Lua total** | **90** | |
+
+The whole run takes ~2 s and exits 0; `npm test` remains 91 passing with the one
+gated Calibre skip. Bugs found and fixed while making the suite pass — each one
+has a regression test now:
+
+* `lua/weiwei/lyrics/agent.lua`: the "no provider left" branch called the
+  callback without returning, so a lookup with no lyrics recursed forever
+  (the suite hung rather than failing).
+* `lua/weiwei/library/tags.lua`: three separate bit-layout bugs — the ID3v2
+  frame payload started one byte late (eating the text-encoding byte, so
+  `Đèn Biển` came back as `?èn Biển`), `TLEN` was multiplied by 1000 although
+  ID3v2 stores milliseconds, and the FLAC STREAMINFO total-sample count read the
+  wrong nibble while `VORBIS_COMMENT` parsed the vendor length as the comment
+  count.
+* `lua/weiwei/player.lua` called the backends with `.` while both `stub` and
+  `mpv` define colon methods, so `self` was silently a parameter (or a function).
+* `lua/weiwei/ui/window.lua`: `open` returned the bare Neovim window handle
+  while every other function expects the wrapper (`buffer`, `geometry`,
+  `closed`), so opening the interface raised on the first field write.
+* `lua/weiwei/ui/format.lua` used `%*s`, which Lua's `string.format` does not
+  support (it is a C printf feature); the now-playing row is padded explicitly
+  by display width instead.
+* `lua/weiwei/xml.lua`: numeric character references were truncated to one byte
+  (`&#31532;` became `0x32`), so CJK text written as entities was corrupted; the
+  attribute scanner now also accepts bare boolean attributes such as
+  `amll:obscene`.
+* `lua/weiwei/lyrics/model.lua`: a line whose words reach outside its own
+  `begin`/`end` envelope is expanded instead of having the word timings cropped.
+* `lua/weiwei/init.lua` dropped the search notes, so the UI could not explain
+  *why* a source contributed nothing (`streaming unavailable: …`, `yt-dlp: …`).
+
+New behaviour with tests: `amll:meta`/`ttm:title` metadata, ruby annotations
+(`tts:ruby`) with the reading kept out of the line, `amll:obscene`,
+`amll:empty-beat`, `itunes:songPart` and `itunes:song-part`, sidecar
+`<translations>`/`<transliterations>` merged with inline `x-translation`/
+`x-roman` per language (with alternates preserved), placeholder words for
+line-only timings, background vocals normalised without parentheses and rendered
+on their own dim row, the `♪` marker for instrumental bars, and a
+last-resort plain-lyrics fallback when no provider has a synchronised match
+(flagged as `plain = true`, never cached as a synchronised hit).
+
+**Not verified here:** no real Neovim (the suite drives a Lua `vim` model),
+no `mpv`, `yt-dlp`, `ffmpeg`, `zenity` or `kdialog` binary, no audio device and
+no network access from the tests — the TTML/LRC fixtures, the yt-dlp argv and
+the HTTP transports are all scripted.

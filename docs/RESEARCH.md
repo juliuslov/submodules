@@ -314,6 +314,37 @@ conclusions are the implementation contract.
   used to confirm the Apple dialect's edge cases (structural whitespace between
   spans, non-overlapping spans, `x-bg` handling) because the Apple prose is
   silent on most of them.
+* [AMLL TTML implementation behaviour](https://amll.dev/en/guides/lyric/ttml.html#implementation-behavior-in-this-library)
+  and the [amll-ttml-db format specification](https://github.com/amll-dev/amll-ttml-db/wiki/%E6%A0%BC%E5%BC%8F%E8%A7%84%E8%8C%83)
+  pin down what a parser is expected to *keep*, which the Apple prose leaves
+  open. Implemented as a result: both `itunes:songPart` and the deprecated
+  `itunes:song-part` are accepted (and the un-prefixed spellings seen in the
+  wild); `itunes:timing` may sit on `<tt>` or in `<head>` and never changes how
+  the body is read; `<amll:meta key value>` (`musicName`, `artists`, `album`,
+  `isrc`, platform ids) and `<ttm:title>` feed the matching metadata;
+  `amll:obscene` (paragraph or word, value or bare attribute) and
+  `amll:empty-beat` (a numeric beat count whose invalid/non-finite values are
+  ignored) survive into the model; `tts:ruby="container|base|textContainer|text"`
+  keeps the base text as the lyric and the reading as a separate `ruby` field;
+  background-vocal text is normalised to one canonical form without its
+  parentheses, so a view can render `(…)` once; inline `x-translation`/`x-roman`
+  spans are merged with the `<iTunesMetadata><translations>` /
+  `<transliterations>` sidecars per language and de-duplicated (a second
+  different text for the same language is preserved as an alternate instead of
+  being dropped); `<text for="L1">` may be either a whole line or a run of
+  `<span begin end>` syllables. Whitespace is structural: an inline space
+  between two spans is a separator while a whitespace run containing a newline
+  is file formatting and is dropped, so a formatted file does not turn
+  `You telling` into `Youtelling`. A line that only has line timing still gets
+  proportionally distributed placeholder words (the same behaviour AMLL
+  documents as "placeholder word entries to avoid information loss"), and a
+  line whose words stick out of its own `begin`/`end` envelope is expanded
+  rather than cropped.
+* The [AMLL TTML Tool](https://tool.amll.dev/) and the
+  [`amll-ttml` Go port](https://pkg.go.dev/github.com/xiaowumin-mark/amll-ttml)
+  were used to confirm the exact spelling and semantics of `amll:obscene` (word
+  property), `amll:empty-beat` (numeric, on a timed span) and the ruby model,
+  since the wiki page describes the fields but not their attribute names.
 * [better-lyrics](https://github.com/better-lyrics/better-lyrics) (GPL-3.0) is
   **not** used as code: no license-compatible reuse is possible in this
   repository. It was read as a feature reference only — provider fallback
