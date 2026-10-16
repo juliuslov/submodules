@@ -271,7 +271,7 @@ function Reader:jump(index)
     self.busy = false
     if err then self.error = Text.clean(err)
     elseif type(data) ~= 'table' or type(data.text) ~= 'string' then self.error = 'Invalid chapter response.'
-    elseif #data.text > 2 * 1024 * 1024 then self.error = 'Chapter exceeds the interactive 2 MiB limit. Use cli.cjs read for the full text.'
+    elseif #data.text > 2 * 1024 * 1024 then self.error = 'Chapter exceeds the interactive 2 MiB limit. Use the CLI read for the full text.'
     else
       self.text = Text.clean(data.text)
       local first, rest = self.text:match('^([^\n]+)\n?(.*)$')

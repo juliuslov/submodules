@@ -29,8 +29,10 @@ build/image_decode.o: services/ascii/native/decode.c vendor/stb/stb_image.h
 build/libwiz_image.a: build/image_decode.o
 	$(AR) rcs $@ $<
 build/wiz-ascii: $(ASCII_RS) build/libwiz_image.a
+	@command -v $(RUSTC) >/dev/null 2>&1 || { echo 'error: $(RUSTC) not found; install Rust >= 1.70 or set RUSTC=/path/to/rustc' >&2; exit 1; }
 	$(RUSTC) --edition=2021 -D warnings -O services/ascii/src/main.rs -L native=build -l static=wiz_image -l m -o $@
 build/wiz-ascii-tests: $(ASCII_RS) build/libwiz_image.a
+	@command -v $(RUSTC) >/dev/null 2>&1 || { echo 'error: $(RUSTC) not found; install Rust >= 1.70 or set RUSTC=/path/to/rustc' >&2; exit 1; }
 	$(RUSTC) --edition=2021 -D warnings --test services/ascii/src/main.rs -L native=build -l static=wiz_image -l m -o $@
 test-ascii: ascii build/wiz-ascii-tests
 	build/wiz-ascii-tests

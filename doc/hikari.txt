@@ -110,7 +110,7 @@ The Ghost-inspired reader adapts to small terminals; it is not a phone app.
 >lua
     require('hikari').setup({
       node = 'node',
-      -- cli = '/absolute/path/to/plugin/dist/cli.cjs',
+      -- cli = '/absolute/path/to/plugin/dist/epub/src/cli.js',
       startup = { enabled = true }, -- false to disable home UI
       reader = { theme = 'auto', mode = 'normal', -- mode: normal, high
         anti_ghosting = { enabled = true, full_redraw_every = 0 } },

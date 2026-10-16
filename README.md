@@ -57,7 +57,7 @@ require('hikari').setup({ node = 'node', reader = { theme = 'auto' } })
 Run `:checkhealth hikari` and `:HikariDoctor`. Generate `:helptags /path/to/hikari/doc`
 if installing manually. Defaults work without setup when the plugin is on
 runtimepath; setup is safe to repeat. The build writes ignored `build/` and
-`dist/`, not library sources. Do not copy only the JS bundle: MOBI needs the
+`dist/`, not library sources. Do not copy only the emitted JS files (`dist/`, one file per source module): MOBI needs the
 Python adapter and pinned upstream source in the checkout too.
 
 ## Startup workspace and display controls
@@ -75,7 +75,7 @@ window-geometry updates. `full_redraw_every = 12` opts into a periodic `redraw!`
 `0` disables periodic repaint. `:HikariRefresh` forces a repaint. No global
 colorscheme changes, blanking timer, or physical e-ink refresh claims.
 
-See [installer/build details](docs/INSTALL.md).
+See [installer/build details](docs/INSTALL.md) and [multi-file build layout](docs/BUILD.md).
 
 ## Read and convert
 
@@ -157,12 +157,12 @@ hikari.convert('/books/legacy.azw3', '/books/new.epub',
 ```
 
 ```sh
-node dist/cli.cjs convert source.epub new.mobi
-node dist/cli.cjs convert legacy.azw3 new.epub calibre
-node dist/cli.cjs convert source.epub new.azw3 calibre
-node dist/cli.cjs mobi-inspect legacy.mobi
-node dist/cli.cjs formats
-node dist/cli.cjs doctor
+node dist/epub/src/cli.js convert source.epub new.mobi
+node dist/epub/src/cli.js convert legacy.azw3 new.epub calibre
+node dist/epub/src/cli.js convert source.epub new.azw3 calibre
+node dist/epub/src/cli.js mobi-inspect legacy.mobi
+node dist/epub/src/cli.js formats
+node dist/epub/src/cli.js doctor
 ```
 
 `mobi-convert` remains a CLI alias. JSON RPC accepts one request then EOF:

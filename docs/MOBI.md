@@ -43,7 +43,7 @@ For an EPUB/MOBI-only build without Rust:
 ```sh
 make native mobi
 npm run build:types
-node scripts/build.mjs
+node scripts/build-js/main.mjs
 ```
 
 Keep the checkout's `services/mobi/python/` and `vendor/kindleunpack/` alongside
@@ -55,9 +55,9 @@ the EPUB archive-checker override.
 ## CLI
 
 ```sh
-node dist/cli.cjs mobi-convert '/books/source.epub' '/books/new.mobi'
-node dist/cli.cjs mobi-inspect '/books/new.mobi'
-node dist/cli.cjs mobi-convert '/books/legacy.mobi' '/books/new.epub'
+node dist/epub/src/cli.js mobi-convert '/books/source.epub' '/books/new.mobi'
+node dist/epub/src/cli.js mobi-inspect '/books/new.mobi'
+node dist/epub/src/cli.js mobi-convert '/books/legacy.mobi' '/books/new.epub'
 # Open the converted EPUB with :HikariOpen /books/new.epub
 ```
 
@@ -106,7 +106,7 @@ end)
 ## TypeScript / JSON RPC
 
 ```js
-const { convertMobi, inspectMobi, createMobiBytes } = require('./dist/index.cjs');
+const { convertMobi, inspectMobi, createMobiBytes } = require('./dist/epub/src/index.js');
 await convertMobi('source.epub', 'new.mobi');
 await convertMobi('legacy.mobi', 'new.epub');
 const info = await inspectMobi('legacy.mobi');
@@ -200,10 +200,10 @@ Hikari uses a separately installed **ebook-convert**, not an unused source
 submodule. Set `HIKARI_CALIBRE` (fallback `WIZ_CALIBRE`) to override its path.
 
 ```sh
-node dist/cli.cjs convert legacy.azw3 new.epub calibre
-node dist/cli.cjs convert hybrid.mobi new.epub calibre
-node dist/cli.cjs convert source.epub new.azw3 calibre
-node dist/cli.cjs convert source.epub new.mobi calibre
+node dist/epub/src/cli.js convert legacy.azw3 new.epub calibre
+node dist/epub/src/cli.js convert hybrid.mobi new.epub calibre
+node dist/epub/src/cli.js convert source.epub new.azw3 calibre
+node dist/epub/src/cli.js convert source.epub new.mobi calibre
 ```
 
 ```lua
@@ -272,8 +272,8 @@ executes scripts or fetches linked resources. Internal DTD/entity declarations
 are rejected; ordinary HTML/XHTML PUBLIC doctypes are ignored, not downloaded.
 
 ```sh
-node dist/cli.cjs convert book.azw3 new.epub libmobi
-node dist/cli.cjs libmobi-inspect book.mobi
+node dist/epub/src/cli.js convert book.azw3 new.epub libmobi
+node dist/epub/src/cli.js libmobi-inspect book.mobi
 build/wiz-mobi --capabilities
 build/wiz-mobi inspect-all book.azw3
 ```

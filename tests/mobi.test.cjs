@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const api = require('../dist/index.cjs');
+const api = require('../dist/epub/src/index.js');
 const book = { title: 'Sách & <Books>', author: 'Nguyễn An', language: 'vi',
   chapters: [{ title: 'Mở đầu', text: 'Xin chào & hello.\n\nLiteral <script>not code</script>.' },
     { title: 'Next chapter', text: '你好 reader. A second chapter.' }] };
@@ -120,13 +120,13 @@ test('missing native checker or Python produces actionable errors, never a parti
 });
 test('MOBI CLI and JSON RPC return structured conversion and inspection replies', t => {
   const f = standalone(t);
-  let result = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'mobi-inspect', f.mobi], { encoding: 'utf8' });
+  let result = spawnSync(process.execPath, [path.resolve('dist/epub/src/cli.js'), 'mobi-inspect', f.mobi], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).data.version, 6);
-  result = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'rpc'], {
+  result = spawnSync(process.execPath, [path.resolve('dist/epub/src/cli.js'), 'rpc'], {
     input: JSON.stringify({ action: 'mobi-convert', path: f.mobi, output: f.roundtrip }), encoding: 'utf8',
   });
   assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).data.to, 'epub');
-  result = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'mobi-convert', f.mobi, path.join(f.dir, 'no.azw3')], { encoding: 'utf8' });
+  result = spawnSync(process.execPath, [path.resolve('dist/epub/src/cli.js'), 'mobi-convert', f.mobi, path.join(f.dir, 'no.azw3')], { encoding: 'utf8' });
   assert.equal(result.status, 1); assert.equal(result.stdout, ''); assert.equal(JSON.parse(result.stderr).ok, false);
 });
 test('empty image-only EPUB spine entries are omitted, without losing other chapters', async t => {

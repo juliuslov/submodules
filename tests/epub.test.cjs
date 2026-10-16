@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
-const api = require('../dist/index.cjs');
+const api = require('../dist/epub/src/index.js');
 const { zipSync, unzipSync, strToU8 } = require('../build/vendor/index.js');
 const spec = {
   title: 'Sách & <Books>', author: 'Nguyễn "An"', language: 'vi',
@@ -138,7 +138,7 @@ test('EPUB 2 package metadata and ordered XHTML spine', t => {
 });
 
 function cli(args, input, env) {
-  return spawnSync(process.execPath, [path.resolve(__dirname, '../dist/cli.cjs'), ...args], {
+  return spawnSync(process.execPath, [path.resolve(__dirname, '../dist/epub/src/cli.js'), ...args], {
     input, encoding: 'utf8', env: { ...process.env, ...env },
   });
 }
@@ -187,7 +187,7 @@ test('nonregular and oversized input rejected before allocation', t => {
 
 
 test('explicit metadata produces identical ZIP timestamps across timezones', () => {
-  const program = 'process.stdout.write(Buffer.from(require("./dist/index.cjs").createBytes(JSON.parse(process.argv[1]))))';
+  const program = 'process.stdout.write(Buffer.from(require("./dist/epub/src/index.js").createBytes(JSON.parse(process.argv[1]))))';
   const generate = timezone => {
     const result = spawnSync(process.execPath, ['-e', program, JSON.stringify(spec)], {
       cwd: path.resolve(__dirname, '..'), env: { ...process.env, TZ: timezone },

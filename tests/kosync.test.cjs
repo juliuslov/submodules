@@ -6,7 +6,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { createHash } = require('node:crypto');
 const { spawn } = require('node:child_process');
-const { KoSyncClient, partialMd5, filenameMd5, documentChecksum } = require('../dist/index.cjs');
+const { KoSyncClient, partialMd5, filenameMd5, documentChecksum } = require('../dist/epub/src/index.js');
 const secret = 'top secret 密碼';
 const key = createHash('md5').update(secret).digest('hex');
 const config = { username:'test_reader', password:secret, allowInsecureLocal:true };
@@ -139,7 +139,7 @@ test('KOReader partial checksum offsets match independent implementation', t=>{
 
 function rpc(payload,environment) {
   return new Promise((resolve,reject)=>{
-    const child=spawn(process.execPath,[path.resolve('dist/cli.cjs'),'rpc'],{
+    const child=spawn(process.execPath,[path.resolve('dist/epub/src/cli.js'),'rpc'],{
       env:{...process.env,KOSYNC_USERNAME:'test_reader',KOSYNC_PASSWORD:secret,KOSYNC_USERKEY:'',...environment},
     });
     let stdout='',stderr='';child.stdout.on('data',data=>stdout+=data);child.stderr.on('data',data=>stderr+=data);

@@ -8,14 +8,16 @@
   },
   "scripts": {
     "build:types": "tsc -p scripts/tsconfig.vendor.json",
-    "build": "make native ascii mobi && npm run build:types && node scripts/build.mjs",
-    "typecheck": "npm run build:types && tsc --noEmit",
+    "build": "make native ascii mobi && npm run build:js",
+    "typecheck": "npm run build:vendor && tsc --noEmit",
     "test": "npm run build && npm run typecheck && make test-native test-ascii test-mobi && node --test tests/*.test.cjs",
-    "doctor": "node dist/cli.cjs doctor",
+    "doctor": "node dist/epub/src/cli.js doctor",
     "build:ascii": "make ascii",
     "build:mobi": "make mobi",
     "setup": "node scripts/install/main.mjs",
-    "setup:check": "node scripts/install/main.mjs --check"
+    "setup:check": "node scripts/install/main.mjs --check",
+    "build:vendor": "tsc -p scripts/tsconfig.vendor.json",
+    "build:js": "npm run build:vendor && node scripts/build-js/main.mjs"
   },
   "repository": {
     "type": "git",

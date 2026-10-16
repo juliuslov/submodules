@@ -7,7 +7,7 @@ git submodule update --init --recursive
 make ascii test-ascii
 build/wiz-ascii photo.png --width 100
 build/wiz-ascii photo.png --width 80 --height 30 --invert
-node dist/cli.cjs ascii photo.png 100
+node dist/epub/src/cli.js ascii photo.png 100
 ```
 
 The `.rs` files implement sampling, alpha compositing, luminance, terminal-cell

@@ -1,7 +1,7 @@
 local Json = require('hikari.json')
 local Process = require('hikari.process')
 local M = {}
-local config = { node = 'node', cli = require('hikari.paths').root .. '/dist/cli.cjs' }
+local config = { node = 'node', cli = require('hikari.paths').root .. '/dist/epub/src/cli.js' }
 function M.configure(opts)
   opts = opts or {}
   local next_config = { node = opts.node or config.node, cli = opts.cli or config.cli, env = opts.env }

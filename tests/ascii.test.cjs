@@ -5,7 +5,7 @@ const os = require('node:os');
 const path = require('node:path');
 const { spawnSync } = require('node:child_process');
 const { deflateSync } = require('node:zlib');
-const { imageToAscii } = require('../dist/index.cjs');
+const { imageToAscii } = require('../dist/epub/src/index.js');
 function fixture(t, bytes = Buffer.from('P6\n2 1\n255\n\0\0\0\xff\xff\xff', 'latin1')) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'wiz-ascii-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -44,7 +44,7 @@ test('ASCII JSON RPC dispatch and standalone CLI', t => {
   const file=fixture(t);
   const direct=spawnSync(path.resolve('build/wiz-ascii'),[file,'--width','2','--height','1','--ramp','@ '],{encoding:'utf8'});
   assert.equal(direct.status,0,direct.stderr); assert.equal(direct.stdout,'@ \n');
-  const rpc=spawnSync(process.execPath,[path.resolve('dist/cli.cjs'),'rpc'],{
+  const rpc=spawnSync(process.execPath,[path.resolve('dist/epub/src/cli.js'),'rpc'],{
     input:JSON.stringify({action:'ascii',path:file,options:{width:2,height:1,ramp:'@ '}}),encoding:'utf8',
   });
   assert.equal(rpc.status,0,rpc.stderr); assert.equal(JSON.parse(rpc.stdout).data.text,'@ \n');

@@ -57,7 +57,7 @@ async function main(): Promise<void> {
       data = scanLibrary(path(req.path), req.query); break;
     case 'archive': data = inspectArchive(path(req.path)); break;
     case 'doctor': data = doctor(); break;
-    default: throw new Error('usage: cli.cjs convert|mobi-convert <input> <output.epub|output.mobi|output.azw3> [native|libmobi|calibre]; mobi-inspect <file>; ascii <image> [width]; kosync-authorize|kosync-register; kosync-pull <document>; kosync-push <spec.json>; kosync-document <file> [binary|filename]; inspect|read|archive <file> [zero-based-index]; create <spec.json> <output.epub>; scan <directory> [query]; doctor; rpc');
+    default: throw new Error('usage: cli.js convert|mobi-convert <input> <output.epub|output.mobi|output.azw3> [native|libmobi|calibre]; mobi-inspect <file>; ascii <image> [width]; kosync-authorize|kosync-register; kosync-pull <document>; kosync-push <spec.json>; kosync-document <file> [binary|filename]; inspect|read|archive <file> [zero-based-index]; create <spec.json> <output.epub>; scan <directory> [query]; doctor; rpc');
   }
   process.stdout.write(JSON.stringify({ ok: true, data }) + '\n');
 }

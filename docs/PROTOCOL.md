@@ -1,6 +1,6 @@
 # One-shot JSON service protocol
 
-Invoke `node dist/cli.cjs rpc`. Send one UTF-8 JSON object followed by EOF on
+Invoke `node dist/epub/src/cli.js rpc`. Send one UTF-8 JSON object followed by EOF on
 stdin. Receive one compact JSON line on stdout (success) or stderr (failure).
 No HTTP listener or shell command strings. Local services need no credentials or
 network; explicit KoSync requests use credentials from the runtime environment.

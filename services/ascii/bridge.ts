@@ -34,7 +34,10 @@ export async function imageToAscii(path: string, options: AsciiOptions = {}): Pr
     ({ stdout } = await execute(asciiBinary(), args, { encoding: 'utf8', timeout: 15000, maxBuffer: 256 * 1024 }));
   } catch (error) {
     const err = error as { stderr?: string; code?: string | number };
-    throw new Error(`ASCII conversion failed: ${err.stderr?.trim() || String(err.code || 'process error')}`);
+    const detail = err.stderr?.trim() || (err.code === 'ENOENT'
+      ? `wiz-ascii not found at ${asciiBinary()}; build it with: make ascii (requires rustc >= 1.70)`
+      : String(err.code || 'process error'));
+    throw new Error(`ASCII conversion failed: ${detail}`);
   }
   const lines = stdout.endsWith('\n') ? stdout.slice(0, -1).split('\n') : stdout.split('\n');
   return { text: stdout, columns: lines[0].length, rows: lines.length };

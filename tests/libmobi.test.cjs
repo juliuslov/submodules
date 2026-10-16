@@ -4,7 +4,7 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const api = require('../dist/index.cjs');
+const api = require('../dist/epub/src/index.js');
 const samples = path.resolve('vendor/libmobi/tests/samples');
 function temporary(t) { const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hikari-libmobi-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true })); return dir; }
 test('actual upstream KF8, HUFF/CDIC, CP1252 and multimedia samples convert with built-in libmobi', async t => {

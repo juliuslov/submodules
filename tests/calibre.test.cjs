@@ -4,14 +4,14 @@ const fs = require('node:fs');
 const path = require('node:path');
 const os = require('node:os');
 const { spawnSync } = require('node:child_process');
-const api = require('../dist/index.cjs');
+const api = require('../dist/epub/src/index.js');
 const book = { title: 'hikari fixture', author: 'Reader', language: 'en', chapters: [{ title: 'Welcome', text: 'Readable text.' }] };
 function fixture(t, mode = 'ok') {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hikari-calibre-test-'));
   const binary = path.join(dir, 'fake ebook-convert'), log = path.join(dir, 'calls.jsonl');
   fs.writeFileSync(binary, `#!/usr/bin/env node
 const fs = require('node:fs'), path = require('node:path');
-const api = require(${JSON.stringify(path.resolve('dist/index.cjs'))});
+const api = require(${JSON.stringify(path.resolve('dist/epub/src/index.js'))});
 const book = ${JSON.stringify(book)};
 const [input, output, ...flags] = process.argv.slice(2);
 if(input === '--version') { console.log('fake Calibre protocol fixture'); process.exit(0); }
@@ -90,13 +90,13 @@ test('missing Calibre and invalid options fail clearly without fallback', async 
 });
 test('generic CLI and JSON RPC expose the opt-in backend', t => {
   const f = fixture(t);
-  const result = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'convert', f.epub, f.output, 'calibre'], { encoding: 'utf8' });
+  const result = spawnSync(process.execPath, [path.resolve('dist/epub/src/cli.js'), 'convert', f.epub, f.output, 'calibre'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).data.backend, 'calibre');
-  const rpc = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'rpc'], { encoding: 'utf8',
+  const rpc = spawnSync(process.execPath, [path.resolve('dist/epub/src/cli.js'), 'rpc'], { encoding: 'utf8',
     input: JSON.stringify({ action: 'convert', path: f.output, output: path.join(f.dir, 'restored.epub'), conversion: { backend: 'calibre' } }),
   });
   assert.equal(rpc.status, 0, rpc.stderr); assert.equal(JSON.parse(rpc.stdout).data.backend, 'calibre');
-  const formats = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'formats'], { encoding: 'utf8' });
+  const formats = spawnSync(process.execPath, [path.resolve('dist/epub/src/cli.js'), 'formats'], { encoding: 'utf8' });
   assert.equal(formats.status, 0); assert.match(JSON.parse(formats.stdout).data.calibre.requires, /explicit/);
 });
 test('real Calibre AZW3 and MOBI round-trips (optional installed-tool integration)', { skip: process.env.HIKARI_TEST_REAL_CALIBRE !== '1' }, async t => {

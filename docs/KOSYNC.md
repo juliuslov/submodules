@@ -21,7 +21,7 @@ export KOSYNC_USERNAME='your-user'
 unset KOSYNC_USERKEY
 read -r -s -p 'KoSync password: ' KOSYNC_PASSWORD; printf '\n'
 export KOSYNC_PASSWORD
-node dist/cli.cjs kosync-authorize
+node dist/epub/src/cli.js kosync-authorize
 ```
 
 Restart Neovim from that environment if using the editor commands. Do not paste
@@ -41,12 +41,12 @@ and response bodies are limited to 128 KiB. No automatic retries are made.
 ## CLI
 
 ```sh
-node dist/cli.cjs kosync-authorize
-node dist/cli.cjs kosync-register                 # explicitly creates an account
-node dist/cli.cjs kosync-document /books/book.epub
-node dist/cli.cjs kosync-document /books/book.epub filename
-node dist/cli.cjs kosync-pull DOCUMENT_ID
-node dist/cli.cjs kosync-push examples/progress.json
+node dist/epub/src/cli.js kosync-authorize
+node dist/epub/src/cli.js kosync-register                 # explicitly creates an account
+node dist/epub/src/cli.js kosync-document /books/book.epub
+node dist/epub/src/cli.js kosync-document /books/book.epub filename
+node dist/epub/src/cli.js kosync-pull DOCUMENT_ID
+node dist/epub/src/cli.js kosync-push examples/progress.json
 ```
 
 **Edit the example document ID and position before pushing.** Push overwrites
@@ -126,7 +126,7 @@ Commands:
 * `:HikariKoSyncPush! /path/progress.json` — bang required to acknowledge a write
 
 The TypeScript library exports `KoSyncClient`, `partialMd5`, `filenameMd5`, and
-`documentChecksum` from `dist/index.cjs`. `KoSyncClient` accepts `username`, one
+`documentChecksum` from `dist/epub/src/index.js`. `KoSyncClient` accepts `username`, one
 of `password`/`userkey`, `baseUrl`, optional `timeoutMs` (50–60,000), and
 `allowInsecureLocal`. Unlike the CLI, library credentials are supplied directly
 in memory by its caller. They are private class fields, not enumerable properties.

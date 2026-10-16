@@ -5,7 +5,7 @@ import { resolve, join } from 'node:path';
 import { unzipSync } from '../../../build/vendor/index.js';
 import { memberPath } from './paths';
 import type { Inventory } from './types';
-export const ROOT = resolve(__dirname, '..');
+export const ROOT = resolve(__dirname, '../../..');
 export const MAX_ARCHIVE = 64 * 1024 * 1024;
 export function archiveBinary(): string { return process.env.HIKARI_ARCHIVE || process.env.WIZ_ARCHIVE || join(ROOT, 'build/wiz-archive'); }
 
