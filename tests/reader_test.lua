@@ -266,6 +266,15 @@ test('anti-ghosting skips identical buffer and geometry writes', function()
   api.nvim_buf_set_lines, api.nvim_win_set_config = set_lines, set_config
   assert(writes == 0 and configs == 0)
 end)
+test('resize restores scoped options reset by minimal window configuration', function()
+  local reader = loaded(); local original = api.nvim_win_set_config
+  api.nvim_win_set_config = function(win, config)
+    original(win, config); vim.wo[win].cursorline = false
+  end
+  vim.o.columns = 120; reader:_render()
+  api.nvim_win_set_config = original
+  assert(vim.wo[reader.panes.toc.win].cursorline and not vim.wo[reader.panes.body.win].cursorline)
+end)
 test('software refresh interval is opt-in and explicit refresh invalidates caches', function()
   reset(); Reader.configure({ anti_ghosting = { full_redraw_every = 2 } })
   local redraws = 0; vim.cmd = function(command) assert(command == 'redraw!'); redraws = redraws + 1 end

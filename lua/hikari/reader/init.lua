@@ -67,7 +67,10 @@ function Reader:_pane(name, geometry)
   }
   local unchanged = Refresh.geometry(pane, config) and self.anti_ghosting.enabled
   if valid_window(pane.win) then
-    if not unchanged then vim.api.nvim_win_set_config(pane.win, config) end
+    if not unchanged then
+      vim.api.nvim_win_set_config(pane.win, config)
+      pane.configured_win = nil -- minimal style can reset window options on resize
+    end
   else pane.win = vim.api.nvim_open_win(pane.buf, false, config) end
   if not self.anti_ghosting.enabled or pane.configured_win ~= pane.win then
     vim.api.nvim_win_set_hl_ns(pane.win, name == 'root' and self.canvas_namespace or self.namespace)

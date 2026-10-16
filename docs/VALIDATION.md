@@ -139,9 +139,9 @@ Latest verification supersedes the earlier suite counts above:
 | MOBI C/Python | 15 |
 | Node/TypeScript services, real libmobi samples and installer | 81 |
 | Lua service model | 19 |
-| Lua reader/workspace/startup model | 28 |
+| Lua reader/workspace/startup model | 29 |
 | Lua hikari lifecycle/commands model | 15 |
-| **Total** | **180** |
+| **Total** | **181** |
 
 One additional real-Calibre integration test was skipped. The real
 Lua → TypeScript → C/Rust/Python RPC smoke also passed.
@@ -172,7 +172,7 @@ not a fake KF8 executable. New tests also prove TypeScript imports do not need
 the Python export validator, reject unsafe DTD/nesting/size inputs, and split
 large Unicode chapters safely.
 
-The 28 reader/workspace tests use a strict editor model, covering high contrast,
+The 29 reader/workspace tests use a strict editor model, covering high contrast,
 identical-write suppression, opt-in software redraw, failure cleanup, narrow
 geometry, startup eligibility and window/buffer lifecycle. The real Neovim
 headless script was expanded, but **not run**: Neovim is unavailable in this
