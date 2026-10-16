@@ -216,3 +216,132 @@ decoders re-implement the bounded subset of stb behaviour used for terminal
 output (area-weighted sampling, alpha compositing onto the paper colour,
 `0.2126R + 0.7152G + 0.0722B` luminance, darkest-first ramp) and share the same
 limits as `limits.rs`. No network is used at build or run time.
+
+## MOBI tooling expansion and de-submoduling (2026-10-16)
+
+Researched before writing code, and recorded here so the decisions are auditable:
+
+* **Vendoring instead of submodules.** GitHub's own documentation warns that
+  submodules are easy to get wrong at clone time and that a repository cannot
+  control what a submodule revision later points at; archive generators and
+  tarball consumers also silently drop the `.gitmodules` payload. Both facts
+  drove the migration: the six pinned revisions are now ordinary files under
+  `vendor/` (`vendor/README.md` records the hashes), so a plain `git clone`
+  yields a buildable, testable tree with no `git submodule update` step.
+  `scripts/vendor/vendorize.mjs` keeps the copy reproducible: it maps the former
+  gitlinks to working-tree content, prunes upstream CI/tests/GUI/demo files that
+  nothing here uses, and deletes `.gitmodules` and the gitlinks themselves.
+* **Upstream sample books.** `vendor/libmobi/tests/samples/` is deliberately
+  kept: `tests/libmobi.test.cjs` drives real pinned fixtures (CP1252, NCX/KF8,
+  HUFF/CDIC, uncompressed Unicode, multimedia, obfuscated fonts) through both
+  decoders, and silently pruning them turned ten passing tests into ENOENT
+  failures. Only `tests/md5` and the upstream Makefile harness stay dropped.
+* **EXTH tag meanings** were re-checked against KindleUnpack's
+  `lib/mobi_header.py` (`exth_tags` map) and libmobi's `meta.c` before the
+  metadata editor was written: 100 author, 101 publisher, 103 description,
+  104 ISBN, 105 subject, 106 publish date, 108 contributor, 109 rights,
+  111 type, 112 review, 113 copyright, 116 ASIN, 201 cover offset, 202
+  thumbnail offset, 503 updated title, 524 language. Both writers store
+  cover *record* indices in 201/202, which is why `mobi-cover` writes both and
+  re-derives the MOBI header's first-image index from the rebuilt record table.
+* **EPUB cover declaration.** EPUB 3.3 declares a cover through
+  `properties="cover-image"` plus a navigation-visible XHTML page, while
+  EPUB 2 readers and Kindle's importer still look for `<meta name="cover">`.
+  Both are emitted, as is done by Calibre and Sigil, so one EPUB works in
+  modern readers and legacy importers.
+* **Markdown structure.** CommonMark's ATX headings and YAML front matter are
+  the only Markdown structures promoted to book metadata/chapters. Everything
+  else (emphasis, links, code spans/lists) is reduced to plain text because the
+  MOBI writer emits text records, not a Markdown renderer — a documented,
+  deliberate lossy conversion rather than an implied CommonMark implementation.
+
+## WeiWei music player and lyrics agents (2026-10-16)
+
+WeiWei is a Neovim-native TUI (floating panes, keyboard-driven, no browser or
+Electron). The APIs below were read end to end before any code was written; the
+conclusions are the implementation contract.
+
+### Lyrics providers
+
+* [LRCLIB](https://lrclib.net/docs) — free, open, no key.
+  `GET /api/get?track_name&artist_name[&album_name&duration]` matches a track
+  (duration match within ±2 s), `GET /api/get/{id}` fetches one record,
+  `GET /api/search?q` or `track_name`/`artist_name`/`album_name` searches and
+  returns at most 20 hits with no pagination. Records carry `plainLyrics`,
+  `syncedLyrics`, `hasWordSync`, `instrumental`, `duration`. A descriptive
+  `User-Agent` identifying the client is **required** (`App vX (url)`), `429`
+  must honour `Retry-After`, requests should be sequential spaced 200–500 ms,
+  and errors are JSON for 4xx/5xx but plain text for malformed parameters.
+  `POST /api/publish` and `/api/flag` need a proof-of-work challenge and are
+  therefore **not** implemented.
+* [LRC.red](https://lrc.red/) — 29.8 M indexed tracks, ~12.5 M time-synced.
+  There is no JSON API (`/api` does not exist) and `robots.txt` allows crawling,
+  so it is treated as an HTML source: one polite request per lookup, parse the
+  time-synced lines and section labels (Intro/Verse/Chorus/Bridge/Outro) from the
+  `/s/{isrc}` page as `.lrc` text. Artwork lives at `/s/{isrc}.webp?size=112`
+  and is only referenced, never re-hosted. Because it is scraping-adjacent, the
+  provider is opt-in, rate-limited, and its failures are never fatal.
+* **Local files** — `.lrc` (+ `.LRC`), `.txt`, `.ttml`/`.xml` beside the audio,
+  in a `lyrics/` sibling directory, or in a configured lyrics directory. Local
+  hits always win over network providers, keeping offline use intact.
+* **Generic REST provider** — a user-configured template
+  (URL/headers/JSON field paths) so a self-hosted or personal source can be
+  added without touching code. Responses are validated before use.
+
+### Synchronised lyrics formats
+
+* [Apple TTML lyrics](https://developer.apple.com/documentation/avfaudio/loading-and-playing-media) —
+  namespaces `http://www.w3.org/ns/ttml`, `#metadata`, and the
+  `http://itunes.apple.com/lyric-ttml-extensions` extension.
+  `itunes:timing` is `None | Line | Word`; a song is
+  `<div itunes:song-part="Verse">` containing `<p begin end itunes:key="L1"
+  ttm:agent="v1">` paragraphs which contain word `<span begin end>` elements.
+  `ttm:role="x-bg"` marks backing vocals (the wrapper carries no begin/end);
+  translations and romanisation appear either inline as
+  `x-translation`/`x-roman` or under
+  `<iTunesMetadata><translations><translation xml:lang><text for="L1">`.
+  Agents are `<ttm:agent type="person|group|other" xml:id="v1"><ttm:name type="full">`
+  with `v1/v2/v3`, `v1000` (chorus) and `v2000` (other) conventions.
+  Timestamps are `SS.mmm` under a minute, `MM:SS.mmm`, or `HH:MM:SS.mmm`, with
+  1–3 decimals; spans must not overlap; no BOM. This is what "Unison-style"
+  word-level sync means: per-word spans, not just line timings.
+* **LRC** — `[mm:ss.xx]` line timings, several stamps per line, `[offset:±ms]`
+  shift, optional `[ar:]`/`[ti:]`/`[al:]`/`[by:]` metadata tags, and — since LRC
+  is de-facto extensible — the `<mm:ss.xx>` word tags used by several clients,
+  which map onto the same word-clocked model as TTML spans.
+* [AMLL](https://amll.dev/en/guides/lyric/ttml.html) and its
+  [`amll-ttml-db`](https://github.com/amll-dev/amll-ttml-db) specification were
+  used to confirm the Apple dialect's edge cases (structural whitespace between
+  spans, non-overlapping spans, `x-bg` handling) because the Apple prose is
+  silent on most of them.
+* [better-lyrics](https://github.com/better-lyrics/better-lyrics) (GPL-3.0) is
+  **not** used as code: no license-compatible reuse is possible in this
+  repository. It was read as a feature reference only — provider fallback
+  ordering, word-level highlighting, translation/romanisation display and
+  karaoke behaviour — and re-implemented from the format specifications above.
+
+### Playback and streaming
+
+* [mpv JSON IPC](https://mpv.io/manual/master/#json-ipc) — `--input-ipc-server=<path>`
+  (unix socket; `\\.\pipe\…` on Windows) or `-` for stdio, plus `--idle` so the
+  process stays alive between tracks. Messages are newline-delimited JSON with an
+  echoed `request_id`; commands used here are `get_property`, `observe_property`,
+  `unobserve_property`, `set_property`, `loadfile`, `seek`, `get_time_us` and
+  `client_name`; the events are `start-file`, `file-loaded`, `end-file`,
+  `property-change`, `seek` and `playback-restart`. Observations die with the
+  connection, so exactly one persistent socket is kept per player.
+* [yt-dlp](https://github.com/yt-dlp/yt-dlp/blob/master/README.md) —
+  `-j/--dump-json` (metadata without downloading), `-J` (single JSON),
+  `-g` (stream URL only), `-F` (format list), `-f bestaudio`,
+  `--no-playlist`, `--no-warnings`, and `--print "%(...)#j"` for the fields
+  actually needed (`id`, `title`, `uploader`/`artist`, `duration`, `thumbnail`,
+  `webpage_url`). `-x --audio-format` is reserved for explicit
+  download-to-library requests. `yt-dlp`, `ffmpeg`/`ffprobe`, `zenity` and
+  `kdialog` are all absent in this sandbox, so the design detects each binary,
+  reports it through doctor/health, and keeps the parsing and queue logic in
+  pure Lua behind a stub the Lua test harness can drive.
+* **Compliance.** LRCLIB requests identify the client and honour rate limits;
+  LRC.red lookups stay opt-in and minimal; yt-dlp is invoked only for
+  user-requested playback/download and never bundled; lyric text is displayed,
+  not redistributed or written into the repository. Providers that forbid
+  automated access are simply not implemented.

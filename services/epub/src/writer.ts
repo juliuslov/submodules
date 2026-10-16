@@ -4,6 +4,7 @@ import { zipSync, strToU8, type Zippable } from 'fflate';
 import { xmlText } from './xml';
 import { inspectBytes } from './archive';
 import type { BookInput } from './types';
+import type { CoverImage } from '../../mobi/cover';
 
 function text(value: unknown, label: string, max = 4096): asserts value is string {
   if (typeof value !== 'string' || !value.trim() || Buffer.byteLength(value) > max ||
@@ -12,7 +13,7 @@ function text(value: unknown, label: string, max = 4096): asserts value is strin
   }
 }
 const header = '<?xml version="1.0" encoding="UTF-8"?>';
-export function createBytes(input: BookInput): Uint8Array {
+export function createBytes(input: BookInput, cover?: CoverImage): Uint8Array {
   if (!input || typeof input !== 'object') throw new Error('book specification required');
   text(input.title, 'title'); text(input.author, 'author'); text(input.language, 'language');
   if (!/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(input.language)) throw new Error('invalid language tag');
@@ -44,7 +45,19 @@ export function createBytes(input: BookInput): Uint8Array {
     nav += `<li><a href="${name}">${xmlText(chapter.title)}</a></li>`;
   });
   files['EPUB/nav.xhtml'] = strToU8(xhtml(input.title, `<nav epub:type="toc" id="toc"><h1>Contents</h1><ol>${nav}</ol></nav>`));
-  files['EPUB/package.opf'] = strToU8(`${header}<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" xml:lang="${lang}"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">${xmlText(id)}</dc:identifier><dc:title>${xmlText(input.title)}</dc:title><dc:creator>${xmlText(input.author)}</dc:creator><dc:language>${lang}</dc:language><meta property="dcterms:modified">${modified}</meta></metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${manifest}</manifest><spine>${spine}</spine></package>`);
+  // A cover travels as opaque bytes and is declared with both the EPUB 2
+  // `meta name="cover"` id and the EPUB 3 `cover-image` manifest property, so
+  // every reader finds it without hikari re-encoding the image.
+  let coverMeta = '', coverItem = '', coverPage = '';
+  if (cover) {
+    const name = `cover.${cover.extension}`;
+    files[`EPUB/${name}`] = cover.bytes;
+    coverItem = `<item id="cover-image" href="${name}" media-type="${cover.mediaType}" properties="cover-image"/>`;
+    coverPage = '<item id="cover-page" href="cover.xhtml" media-type="application/xhtml+xml"/>';
+    coverMeta = '<meta name="cover" content="cover-image"/>';
+    files['EPUB/cover.xhtml'] = strToU8(xhtml(input.title, `<div class="cover"><img src="${name}" alt="Cover"/></div>`));
+  }
+  files['EPUB/package.opf'] = strToU8(`${header}<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="book-id" xml:lang="${lang}"><metadata xmlns:dc="http://purl.org/dc/elements/1.1/"><dc:identifier id="book-id">${xmlText(id)}</dc:identifier><dc:title>${xmlText(input.title)}</dc:title><dc:creator>${xmlText(input.author)}</dc:creator><dc:language>${lang}</dc:language><meta property="dcterms:modified">${modified}</meta>${coverMeta}</metadata><manifest><item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>${coverItem}${coverPage}${manifest}</manifest><spine>${cover && coverItem ? '<itemref idref="cover-page"/>' : ''}${spine}</spine></package>`);
   const bytes = zipSync(files, { level: 6, mtime: new Date(2000, 0, 1, 0, 0, 0) });
   inspectBytes(bytes); // Same bounded integrity policy for generated books.
   return bytes;

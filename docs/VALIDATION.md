@@ -11,7 +11,7 @@ Local checks on 2026-10-15:
   and UndefinedBehaviorSanitizer. The 11 native tests pass with
   `UBSAN_OPTIONS=halt_on_error=1` against that binary.
 * `npm audit --omit=dev`: zero reported vulnerabilities at check time.
-* `npm run doctor`: Node 22, native checker and all source submodules detected.
+* `npm run doctor`: Node 22, native checker and all vendored components detected.
 
 Cases include Unicode, XML escaping, metadata and spine order, first stored
 mimetype record, text extraction without scripts/styles, output no-overwrite,
@@ -24,7 +24,7 @@ The safety review found that miniz's general archive validator skips entries
 whose declared uncompressed length is zero. The companion adds size/CRC
 consistency checks and separately validates deflated empty files against a sink
 that rejects all output. This is a companion patch, not a modification to the
-vendored miniz submodule.
+in-repo miniz copy.
 
 **Not locally verified:** real Neovim headless integration (no installed Neovim;
 release assets blocked by the sandbox host allowlist), EPUBCheck conformance
@@ -90,7 +90,7 @@ run in this sandbox because Neovim is not installed here.
   `-fsanitize=undefined -fno-sanitize-recover=all -Werror`; all 15 MOBI Python
   and 12 MOBI Node tests passed with `UBSAN_OPTIONS=halt_on_error=1`. The ordinary
   release build was restored afterward. Upstream sources were not modified.
-* `npm run doctor` detects both new source submodules, Python 3.11 and
+* `npm run doctor` detects both new in-repo vendor components, Python 3.11 and
   `wiz-mobi 1.0.0 / libmobi git-9062742`. No remote service is contacted.
 
 The converter targets a bounded **text-focused legacy subset**, not lossless
@@ -207,7 +207,7 @@ Commands actually run in this environment:
 ```sh
 rm -rf build dist && npm run build      # C tools + optional addon + dist/
 npm run typecheck                       # tsc --noEmit, strict
-npm run doctor                          # backend inventory + submodules
+npm run doctor                          # backend inventory + vendor engines
 npm run setup:check                     # prerequisites, exit 0
 node --test tests/*.test.cjs
 make test-native test-mobi
@@ -235,3 +235,51 @@ duplicated limits, option validation, stb FFI decode path and renderer tests
 must be built with `npm run build:ascii` (`cargo` + `@napi-rs/cli`) on a machine
 with Rust >= 1.88. Similarly, `tests/headless.lua` still needs a real Neovim,
 real Calibre remains uninstalled, and no macOS/Termux device run was possible.
+
+## 2026-10-16: MOBI tools, metadata/covers/batches and in-repo vendors
+
+Supersedes the counts above for the Node suite. No Git submodule remains: the six
+pinned libraries are ordinary files under `vendor/` (commit "Vendor the six
+libraries in-repository instead of as Git submodules"), and the new MOBI tools
+are original TypeScript in `services/mobi/`.
+
+| Suite | Passed | Command |
+| --- | ---: | --- |
+| Native archive C/Python | 11 | `make test-native` |
+| MOBI C/Python | 15 | `make test-mobi` |
+| Node/TypeScript services, MOBI tools, installer, ASCII | 91 (+1 skipped) | `node --test tests/*.test.cjs` |
+| Lua service / reader / hikari models | 63 | `.venv/bin/python tests/run_lua.py` |
+| **Total** | **180 passing, 1 skipped** | |
+
+Verified behaviours specific to this change:
+
+* **Built-in text sources.** Markdown (front matter, headings, emphasis,
+  lists, links), TXT (form feeds and `Chapter N`-style headings), HTML/XHTML
+  (`<title>`, `<meta name=author>`, `<html lang>`, script/style dropped) and FB2
+  (`<description>` metadata, nested `<section>`) each convert to EPUB and MOBI6
+  with no external tool. RTF is refused by name; invalid UTF-8, DTD/entity
+  declarations, empty sources and unknown extensions each fail with their own
+  message (`.xyz` → `unsupported input: .xyz …`).
+* **Metadata editing.** `mobi-tag` rewrote title/author/language/publisher/
+  description; the result was re-read by `mobi-metadata`, by `wiz-mobi inspect`,
+  by libmobi and by the pinned KindleUnpack decoder, and the text records were
+  byte-identical before and after. Clearing a field with an empty value removes
+  the EXTH record instead of writing an empty string.
+* **Covers.** `mobi-cover` inserted a PNG as record 2, synchronised EXTH 201 and
+  202 and the MOBI first-image index, and left both decoders and MOBI→EPUB
+  conversion working. Non-image bytes and >4 MiB images are rejected by content.
+  EPUB outputs carry `properties="cover-image"`, `<meta name="cover">` and a
+  `cover.xhtml` spine entry.
+* **Batch.** `mobi-batch` converted 6 of 7 books in a mixed directory (md, txt,
+  html, fb2, two .mobi) with `--concurrency 2`, isolated a deliberately damaged
+  book into `entries[].error`, never wrote an output it was not asked to write,
+  and disambiguated colliding names as `six.mobi` / `six-txt.mobi` (previously
+  an EEXIST failure).
+* **Vendors.** `node dist/cli.cjs vendors` and `doctor` report the five engines
+  with repository-relative locations and licenses; no engine text mentions a
+  submodule; `libmobi` and `kindleunpack` report available here, `calibre`
+  reports the opt-in hint. `make clean && npm run build && npm test` passes on a
+  fresh clone with no submodule step.
+
+**Not verified here:** real Calibre (uninstalled; the gated test stays skipped),
+real Neovim, and no macOS/Termux run.

@@ -1,4 +1,8 @@
+import { textSourceFormats } from './source/index';
+
 export type EbookFormat = 'epub' | 'mobi' | 'azw3';
+/** Text sources handled entirely by in-repository converters. */
+export type SourceFormat = EbookFormat | 'text';
 /** Container preflight for the optional external engine, NOT full validation. */
 export function sourceFormat(bytes: Buffer): EbookFormat {
   if (bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04]))) return 'epub';
@@ -23,9 +27,35 @@ export function sourceFormat(bytes: Buffer): EbookFormat {
   return version === 8 ? 'azw3' : 'mobi';
 }
 
+/** Classifies an input: binary book, text source, or nothing we can read.
+ *
+ * `extension` is the original path's extension, because the private snapshot a
+ * conversion works on deliberately has no meaningful name. */
+export function sourceKind(bytes: Buffer, extension = ''): SourceFormat {
+  try { return sourceFormat(bytes); } catch (error) {
+    const lower = extension.toLowerCase();
+    if (TEXT_EXTENSIONS.includes(lower)) return 'text';
+    // A file that is neither a container nor a known text type is reported as
+    // unsupported by name: "input is not an EPUB or MOBI" would be misleading
+    // for, say, a PDF.
+    if (lower && !BOOK_EXTENSIONS.includes(lower)) {
+      throw new Error(`unsupported input: ${lower} is not a book or text source hikari can read `
+        + `(accepted: ${[...BOOK_EXTENSIONS, ...TEXT_EXTENSIONS].join(', ')})`);
+    }
+    throw error;
+  }
+}
+
+/** Extensions the in-repository text converters accept. */
+export const TEXT_EXTENSIONS = ['.txt', '.text', '.md', '.markdown', '.mdown', '.md.txt', '.html', '.htm', '.xhtml', '.fb2', '.fb2.zip', '.rtf'];
+
+/** Binary container extensions handled by the decoders. */
+export const BOOK_EXTENSIONS = ['.epub', '.mobi', '.azw3', '.azw', '.prc', '.kf8', '.pdb'];
+
 export function conversionFormats(): object {
   return {
     fidelity: 'text-focused, not lossless',
+    builtInSources: textSourceFormats(),
     native: { inputs: ['EPUB', 'DRM-free MOBI6/7: uncompressed or PalmDOC'], outputs: ['EPUB', 'MOBI6'] },
     libmobi: { inputs: ['EPUB', 'DRM-free MOBI6/7', 'KF8/AZW3', 'hybrid MOBI/KF8', 'HUFF/CDIC'], outputs: ['EPUB', 'MOBI6'], requires: 'built-in libmobi reconstruction; TypeScript text conversion' },
     calibre: { requires: 'separately installed ebook-convert; explicit opt-in',

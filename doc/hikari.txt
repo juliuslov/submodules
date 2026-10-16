@@ -14,14 +14,13 @@ CONTENTS                                                    *hikari*
 hikari is a standalone Neovim plugin. installer.nvim is NOT a dependency.
 The repository URL remains https://github.com/juliuslov/submodules ; its plugin
 name and Lua namespace are hikari. The implementation is on the open PR branch
-arena/fc59f9a1-submodules until merged.
+arena/a6373a3d-submodules until merged.
 
 Requirements: Neovim >= 0.10, Node >= 22.12, npm, C99 compiler, Make, ar,
 and Python >= 3.8. Supported platform family: POSIX Linux/macOS (Linux tested).
 Optional extended conversion requires a separately installed Calibre ebook-convert.
 
 Initialize/build in the plugin checkout: >sh
-    git submodule update --init --recursive
     npm ci
     npm run build
 <
@@ -189,7 +188,7 @@ The external adapter has protocol/failure tests using a fake executable. Real
 Calibre and real Neovim were unavailable in this sandbox; do not interpret those
 tests as physical Kindle, EPUBCheck or full format-conformance certification.
 
-Dependencies retain their licenses: four earlier MIT submodules, LGPL-3.0+
+Dependencies retain their licenses: four earlier MIT-licensed copies, LGPL-3.0+
 libmobi, GPL-3.0 KindleUnpack and GPL-3.0-only Python adapter. Calibre is separately
 installed GPL-3.0 software. Original non-Python companion code still has no
 general distribution grant (package license UNLICENSED). See docs/MOBI.md.
@@ -197,7 +196,7 @@ general distribution grant (package license UNLICENSED). See docs/MOBI.md.
 ==============================================================================
 6. Migration                                                 *hikari-migration*
 
-require('wizardo_services') and its existing submodules alias the canonical
+require('wizardo_services') and its child modules alias the canonical
 hikari module objects, sharing configuration and reader state (no duplicate
 implementation). Existing Wiz* commands remain aliases and do not replace
 already-registered user commands. New integrations should use hikari/Hikari*.

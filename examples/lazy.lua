@@ -4,7 +4,7 @@ return {
   'juliuslov/submodules',
   name = 'hikari',
   main = 'hikari',
-  branch = 'arena/fc59f9a1-submodules',
+  branch = 'arena/a6373a3d-submodules',
   lazy = false, -- required to show the workspace at Neovim startup
   build = './install.sh', -- explicit manager build step; never runs at startup
   opts = {

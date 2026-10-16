@@ -58,6 +58,20 @@ node dist/cli.cjs mobi-convert '/books/source.epub' '/books/new.mobi'
 node dist/cli.cjs mobi-inspect '/books/new.mobi'
 node dist/cli.cjs mobi-convert '/books/legacy.mobi' '/books/new.epub'
 # Open the converted EPUB with :HikariOpen /books/new.epub
+
+# Built-in text sources, metadata overrides and a cover in one call
+node dist/cli.cjs convert notes.md '/books/new.mobi' --title 'Real Title' \
+  --author 'A. Author' --language en --cover art.jpg
+
+# Read, edit or clear MOBI metadata (EXTH)
+node dist/cli.cjs mobi-metadata '/books/legacy.mobi'
+node dist/cli.cjs mobi-tag '/books/legacy.mobi' '/books/retagged.mobi' --title T --publisher P
+node dist/cli.cjs mobi-tag '/books/retagged.mobi' '/books/clean.mobi' --publisher ''  # clears a field
+
+# Attach a cover image (JPEG/PNG/GIF, 4 MiB max) or convert a whole directory
+node dist/cli.cjs mobi-cover '/books/legacy.mobi' --image cover.png --output '/books/covered.mobi'
+node dist/cli.cjs mobi-batch '/books/incoming' '/books/out' --to epub --recursive --concurrency 4
+node dist/cli.cjs vendors                                # engine/license inventory
 ```
 
 Output extension `.mobi` or `.epub` determines direction; input format is
@@ -129,6 +143,76 @@ Byte counts above are illustrative. `mobi-inspect` requires `path` and returns
 `ok`, `version`, `compression`, numeric `encoding`, `textBytes`, `records`,
 `title`, `author`, `language` under the normal service `data` envelope.
 Errors use stderr `{ "ok": false, "error": "..." }`, exit status 1.
+
+## Built-in text sources
+
+TXT, Markdown, HTML/XHTML and FB2 are converted entirely in-repository: no
+Calibre, no libmobi, no Python, and nothing is downloaded.
+
+| Source | Metadata | Chapters |
+| --- | --- | --- |
+| `.txt`, `.text` | filename fallback | form feeds, `Chapter N`/`Глава N`/`Chương N`/`第N章` headings, else ~512 KiB parts |
+| `.md`, `.markdown`, `.mdown` | YAML front matter (`title`/`author`/`language`), else leading `H1` | `#`/`##` headings; syntax is stripped, image alt text and list bullets are kept |
+| `.html`, `.htm`, `.xhtml` | `<title>`, `<meta name="author">`, `<html lang>` | heading elements, and structurally stacked `<div>`/`<p>` blocks |
+| `.fb2` | `<description><title-info>` (title, author, language) | recursive `<section>` nesting |
+
+The `.text` in `.md.txt` is treated as a text file, and RTF is refused by name
+("not implemented yet") instead of being half-parsed. Sources that are not valid
+UTF-8, declare a DTD/entity subset, or contain no readable text fail with a
+specific message. The shared pipeline limits apply: 8 MiB of text, 1 MiB per
+chapter, 256 chapters, 4096-byte titles/labels. Output is text-focused and not
+lossless — script and style blocks are dropped rather than executed.
+
+`.epub`, `.mobi`, `.azw3`, `.azw`, `.prc`, `.kf8` and `.pdb` go through the
+book decoders instead, and any other extension is reported as unsupported by
+name rather than guessed from its content.
+
+## Metadata editing, covers and batches
+
+* `mobi-metadata` reads the whole EXTH table (`title`, `author`, `language`,
+  `publisher`, `description`, `isbn`, `subject`, `publishdate`, `contributor`,
+  `rights`, `type`, `review`, `copyright`, `asin`), the number of text records,
+  the first image record and the declared cover.
+* `mobi-tag` rewrites those fields in place: the PDB record table is rebuilt,
+  unused EXTH slots are reused, a second title copy inside record 0 (offset 84)
+  is refreshed, and a field is deleted when its value is empty or `null`. Text
+  records are untouched, so tagging never reflows a book.
+* `mobi-cover` inserts one image record before the EOF record and synchronises
+  EXTH 201 (cover) and 202 (thumbnail), plus the first-image index in the MOBI
+  header. Images are validated by magic bytes, never by file name; 4 MiB is the
+  maximum. Without an explicit `--image`, a sibling `cover.jpg`, `cover.png`,
+  `folder.jpg`, `front.jpg`, … is used when present.
+* `mobi-batch` converts every supported book in a directory with bounded
+  concurrency (`1..8`), `--recursive` (bounded depth, symlinked directories are
+  never followed) and continue-on-error semantics: a damaged book is reported in
+  `entries[]` and the rest of the run completes. Output names are never
+  overwritten — `book.md` and `book.mobi` become `book.epub` and
+  `book-mobi.epub` instead of colliding.
+
+EPUB outputs with a cover carry both EPUB 3 and EPUB 2 declarations: the
+manifest item has `properties="cover-image"`, the package has
+`<meta name="cover">`, and a `cover.xhtml` page leads the spine. MOBI outputs use
+one image record plus EXTH 201/202.
+
+## Vendor registry: everything lives in this repository
+
+No Git submodule is used or required. Every engine below is either original
+code in `services/mobi/`, an in-repository upstream copy under `vendor/`, or an
+explicitly opt-in external program that is never downloaded or bundled.
+
+| Engine | Where | License | Role |
+| --- | --- | --- | --- |
+| `text-sources` | `services/mobi/source/` | original code | TXT/Markdown/HTML/FB2 conversion |
+| `writer` | `services/mobi/writer/` | original code | MOBI6 + EPUB serialization, EXTH, cover records |
+| `libmobi` | `vendor/libmobi` | LGPL-3.0+ | bounded decoding, KF8/HUFF reconstruction, metadata |
+| `kindleunpack` | `vendor/kindleunpack/lib` | GPL-3.0 | independent Python decoder for cross-validation |
+| `calibre` | external executable | GPL-3.0 (not bundled) | optional AZW3 output and extended inputs |
+
+`node dist/cli.cjs vendors` and the RPC action `vendors` report this table with
+live availability, so a missing dependency is diagnosable without reading source.
+Upstream revisions are recorded once, in [`vendor/README.md`](../vendor/README.md);
+updating a library means copying the new revision in, updating the recorded hash
+and re-running `make test-mobi`.
 
 ## Native backend: deliberate limits and fidelity
 

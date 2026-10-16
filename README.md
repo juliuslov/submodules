@@ -11,7 +11,8 @@ client. No installer.nvim dependency, browser, database, or startup downloads.
 The repository URL is still **`juliuslov/submodules`**. It has not been renamed
 on GitHub. The six vendored libraries are in-repository copies under `vendor/`
 (pinned revisions in [`vendor/README.md`](vendor/README.md)), not Git submodules,
-so a clone is self-contained. The feature is on [PR #1](https://github.com/juliuslov/submodules/pull/1).
+so a clone is self-contained. The work is on the branch
+`arena/a6373a3d-submodules`.
 
 ## Install with lazy.nvim
 

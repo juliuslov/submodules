@@ -1,5 +1,5 @@
 import { calibreBinary } from '../../mobi/calibre';
-import { mobiBinary, pythonBinary } from '../../mobi';
+import { mobiBinary, pythonBinary, textSourceFormats, vendorStatus } from '../../mobi';
 import { asciiBackend, asciiBackends } from '../../ascii';
 import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -23,7 +23,8 @@ export function doctor(): object {
   catch { python = { available: false, error: 'install Python >= 3.8 or set WIZ_PYTHON' }; }
   const kindleunpack = existsSync(join(ROOT, 'vendor/kindleunpack/lib/mobi_header.py'));
   const mobi = { available: mobiNative.available && python.available && kindleunpack,
-    native: mobiNative, python, textOnly: true, exportFormat: 'MOBI6' };
+    native: mobiNative, python, textOnly: true, exportFormat: 'MOBI6',
+    buildInInputs: textSourceFormats().filter(source => source.supported).map(source => source.label) };
   let capabilities: object | undefined;
   try { capabilities = JSON.parse(execFileSync(mobiBinary(), ['--capabilities'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 })); }
   catch { /* Missing or older binary: diagnostics remain usable. */ }
@@ -36,7 +37,9 @@ export function doctor(): object {
   // In-repository vendored components: no Git submodule can be missing, only a
   // partial copy of a vendor directory. Kept as `submodules` so existing Lua
   // diagnostics keep working.
-  return { plugin: 'hikari', libmobi, calibre, mobi, ascii, kosync, node: process.version, archive, submodules: {
+  const vendors = vendorStatus().map(({ id, kind, location, license, available, requirement, capabilities }) =>
+    ({ id, kind, location, license, available, requirement, capabilities }));
+  return { plugin: 'hikari', libmobi, calibre, mobi, vendors, ascii, kosync, node: process.version, archive, submodules: {
     libmobi: existsSync(join(ROOT, 'vendor/libmobi/src/mobi.h')),
     kindleunpack,
     stb: existsSync(join(ROOT, 'vendor/stb/stb_image.h')),
