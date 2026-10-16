@@ -18,14 +18,16 @@ sources, not claims that this companion has been merged into installer.nvim.
   C ZIP reader, archive statistics and CRC validation. MIT license.
 * [fflate](https://github.com/101arrowz/fflate/tree/dcb3714a6c25db3a2748641019c5277413d09714):
   TypeScript ZIP codec. MIT license. We bundle directly from the pinned source
-  submodule rather than silently downloading another npm copy.
+  vendored copy rather than silently downloading another npm copy.
 * [dkjson 2.5](https://github.com/LuaDist/dkjson/tree/e72ba0c9f5d8b8746fc306f6189a819dbb5cd0be):
   Lua 5.1/5.2 JSON codec (MIT permission in `dkjson.lua`). Loaded directly from
-  the pinned submodule as a plain-Lua fallback; Neovim uses `vim.json`.
+  the vendored copy as a plain-Lua fallback; Neovim uses `vim.json`.
 
-Gitlinks lock all four libraries. Initialize with `git submodule update --init
---recursive`. Updating a library requires changing its gitlink, reviewing its
-license/API, and rerunning tests. No branch-tracking updates run at build time.
+All four libraries are vendored as ordinary files under `vendor/`, pinned to the
+revisions linked above and listed in `vendor/README.md`. Updating one means
+copying the new revision in, updating the recorded hash, reviewing its
+license/API, and rerunning tests. No branch-tracking or fetch step runs at build
+time, and there are no Git submodules.
 
 * [fast-xml-parser source](https://github.com/NaturalIntelligence/fast-xml-parser):
   npm version 5.11.2 is lockfile-pinned. The service uses its validator,
@@ -99,7 +101,7 @@ Researched online via the GitHub API, then inspected the exact pinned sources:
   Python subprocess. No upstream extraction routines write files.
 * [Calibre](https://github.com/kovidgoyal/calibre): researched as an alternative
   for broader conversion support. It is not added as an unused heavyweight
-  submodule or assumed to be installed. Use such a tool for unsupported Kindle
+  vendored copy or assumed to be installed. Use such a tool for unsupported Kindle
   variants or conversions requiring richer layout preservation.
 
 The implemented subset is unencrypted legacy MOBI6/7 (uncompressed/PalmDOC
@@ -139,8 +141,8 @@ searched every MOBI page on the web. Sources fetched through GitHub's API:
   their broader advertised support does not erase the adapter's stricter native
   safety policy or make KindleUnpack's KF8 output guaranteed valid EPUB.
 
-Decision: keep the six meaningful pinned submodules, and add an **explicitly
-opt-in installed Calibre executable**, not an unused enormous submodule or a
+Decision: keep the six meaningful vendored components, and add an **explicitly
+opt-in installed Calibre executable**, not an unused enormous copy or a
 silent fallback. Extended input is normalized to a policy-checked EPUB; output
 is still text-focused. Calibre is unavailable in this sandbox: external tests
 use a fake executable and an optional real-tool test remains gated. Neovim's

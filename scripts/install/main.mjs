@@ -13,7 +13,8 @@ try {
     console.log(`hikari installer: [--check] [--test] [--offline]
 Builds all pinned native libraries/tools, the TypeScript services and, when a
 Rust toolchain is present, the optional napi-rs ASCII addon.
---offline skips submodule fetch and uses npm ci --offline (requires populated caches).
+--offline uses npm ci --offline (requires a populated npm cache). Every vendor
+library is an in-repository copy, so no build step fetches sources.
 No sudo, OS package installs, remote scripts or automatic Calibre install.`);
   } else {
     if (!supported()) throw new Error('hikari currently builds on POSIX Linux/macOS');
@@ -32,7 +33,6 @@ No sudo, OS package installs, remote scripts or automatic Calibre install.`);
       console.log(`hikari: ${tool.name} not found; the built-in TypeScript ASCII renderer will be used instead.`);
     }
     if (!args.has('--check')) {
-      if (!args.has('--offline')) run('git', ['submodule', 'update', '--init', '--recursive'], { cwd: root });
       run('npm', ['ci', ...(args.has('--offline') ? ['--offline'] : [])], { cwd: root });
       run('npm', ['run', 'build'], { cwd: root });
       if (args.has('--test')) {

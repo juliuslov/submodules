@@ -5,7 +5,7 @@ local function codec()
   if not fallback then
     local path = require('hikari.paths').root .. '/vendor/dkjson/dkjson.lua'
     local load, err = loadfile(path)
-    assert(load, 'initialize dkjson submodule: ' .. tostring(err))
+    assert(load, 'vendored dkjson is missing: ' .. tostring(err))
     fallback = load()
   end
   return fallback

@@ -15,8 +15,8 @@ import { fileURLToPath } from 'node:url';
 // Node's require(esm) support (Node >= 22.12, as declared in package.json).
 // npm packages stay external: `npm ci` is part of every installation, and
 // keeping them out of dist avoids re-bundling third-party code. The vendored
-// fflate sources (a Git submodule, not an npm package) are bundled, which is
-// why the bare `fflate` specifier is aliased to the pinned submodule path.
+// fflate sources (an in-repository vendored copy, not an npm package) are
+// bundled, which is why the bare `fflate` specifier is aliased to that path.
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const outdir = join(root, 'dist');

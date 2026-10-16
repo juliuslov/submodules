@@ -9,8 +9,9 @@ client. No installer.nvim dependency, browser, database, or startup downloads.
 **Plugin name:** `hikari` · **Lua:** `require('hikari')` · **Help:** `:help hikari`
 
 The repository URL is still **`juliuslov/submodules`**. It has not been renamed
-on GitHub. The six pinned Git submodules are implementation dependencies, not
-the plugin's public name. The feature is on [PR #1](https://github.com/juliuslov/submodules/pull/1).
+on GitHub. The six vendored libraries are in-repository copies under `vendor/`
+(pinned revisions in [`vendor/README.md`](vendor/README.md)), not Git submodules,
+so a clone is self-contained. The feature is on [PR #1](https://github.com/juliuslov/submodules/pull/1).
 
 ## Install with lazy.nvim
 
@@ -24,7 +25,6 @@ without it. POSIX Linux/macOS are targeted; Linux is tested.
   'juliuslov/submodules',
   name = 'hikari',
   main = 'hikari',
-  branch = 'arena/fc59f9a1-submodules', -- open PR branch; remove after merge
   lazy = false, -- load at startup for the home workspace
   build = './install.sh',
   opts = {
@@ -45,7 +45,7 @@ For a native-package installation, clone this branch under
 
 ```sh
 ./install.sh --check  # inspect prerequisites, no installs
-./install.sh          # submodules + npm ci + C tools + dist/ (+ addon if Rust)
+./install.sh          # npm ci + C tools + dist/ (+ native addon if Rust)
 ./install.sh --test   # build and run tests; reports unavailable optional checks
 ```
 
@@ -186,9 +186,12 @@ still work. Set `vim.g.hikari_author` and
 configured, with no automatic account creation or progress uploads; see
 [KoSync configuration](docs/KOSYNC.md).
 
-## Real pinned submodules
+## Vendored components (in-repository, pinned revisions)
 
-| Git submodule | Used by | License / purpose |
+No Git submodules: `git clone` is enough. See
+[`vendor/README.md`](vendor/README.md) for the exact upstream commit of each copy.
+
+| `vendor/` directory | Used by | License / purpose |
 | --- | --- | --- |
 | `vendor/miniz` | C | MIT, ZIP integrity policy |
 | `vendor/fflate` | TypeScript | MIT, EPUB ZIP read/write |
@@ -197,8 +200,8 @@ configured, with no automatic account creation or progress uploads; see
 | `vendor/libmobi` | C shared library | LGPL-3.0+, metadata and bounded text validation |
 | `vendor/kindleunpack` | Python subprocess | GPL-3.0, independent legacy decoder |
 
-Source is used from the pinned gitlinks, without `submodule update --remote`.
-Calibre is an optional **installed executable**, not an unused giant submodule.
+Source is copied from the pinned upstream revisions without tracking a branch.
+Calibre is an optional **installed executable**, never a vendored copy.
 See [web research and source revisions](docs/RESEARCH.md). Preserve upstream
 notices and review [redistribution obligations](docs/MOBI.md#component-licensing-and-redistribution).
 Original non-Python service code still has no general distribution license grant

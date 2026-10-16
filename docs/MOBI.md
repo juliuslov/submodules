@@ -8,7 +8,7 @@ legacy-compatible default. Select `{ backend: 'libmobi' }`, the CLI's final
 Calibre remains explicit via `{ backend: 'calibre' }` or a command bang.
 There is no silent fallback or automatic Calibre install.
 The companion now converts in **both directions**, offline. Two actual pinned
-Git submodules perform meaningful work:
+Vendored in-repository components perform meaningful work:
 
 | Dependency | Pin | Runtime role |
 | --- | --- | --- |
@@ -27,11 +27,10 @@ a C99 compiler, Make, and POSIX Linux/macOS. The Python decoder uses only the
 standard library plus the pinned KindleUnpack source; no pip package is needed.
 
 ```sh
-git submodule update --init --recursive
-npm ci
+npm ci   # libmobi/KindleUnpack are vendored in this repository
 npm run build                # C tools (libmobi, wiz-mobi), then dist/ bundles
 make test-mobi               # independent Python/C fixture tests
-npm run doctor               # inspect data.mobi and both new submodule flags
+npm run doctor               # inspect data.mobi and the vendored component flags
 ```
 
 `make mobi` builds `build/wiz-mobi` with an adjacent replaceable
@@ -184,7 +183,7 @@ Errors use stderr `{ "ok": false, "error": "..." }`, exit status 1.
   architectural choice, not a guarantee that every distribution is license-
   compliant. Review the combined distribution before shipping.
 * Other original companion code still has no general distribution license grant
-  (`package.json: UNLICENSED`). Adding these submodules does not silently
+  (`package.json: UNLICENSED`). Adding these vendored components does not silently
   relicense the entire existing repository. The four earlier MIT dependencies
   retain their licenses. Do not describe all six dependencies as MIT.
 
@@ -197,7 +196,7 @@ See [research](RESEARCH.md), [architecture](ARCHITECTURE.md), and
 Research in the Calibre FAQ, CLI, MOBI input/output plugins and MobiReader
 confirms support for KF8/AZW3, hybrid containers and HUFF/CDIC decompression.
 Hikari uses a separately installed **ebook-convert**, not an unused source
-submodule. Set `HIKARI_CALIBRE` (fallback `WIZ_CALIBRE`) to override its path.
+vendored copy. Set `HIKARI_CALIBRE` (fallback `WIZ_CALIBRE`) to override its path.
 
 ```sh
 node dist/cli.cjs convert legacy.azw3 new.epub calibre

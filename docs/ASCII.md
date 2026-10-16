@@ -14,8 +14,7 @@ Selection order is `process` → `native` → `typescript`. A backend that fails
 instead of a misleading second attempt.
 
 ```sh
-git submodule update --init --recursive
-npm ci
+npm ci   # vendors are already in the repository
 npm run build          # C tools, dist/, and the addon when Rust is present
 npm run build:ascii    # napi-rs addon only; prints how to get Rust if missing
 

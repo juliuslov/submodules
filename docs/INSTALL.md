@@ -12,14 +12,15 @@ fetches remote shell scripts, or downloads Calibre.
 ./install.sh --check
 ./install.sh
 ./install.sh --test
-# Or, when submodules and the npm cache are already populated:
+# Or, when the npm cache is already populated:
 ./install.sh --offline --test
 ```
 
-`--check` is read-only. Normal installation initializes the six pinned Git
-submodules, runs `npm ci`, and builds the C archive checker, libmobi shared
-library (including XML/OPF), `wiz-mobi`, `mobitool`, `mobimeta` and the split
-Node bundles in `dist/`. The napi-rs ASCII addon is attempted when `cargo` is
+`--check` is read-only. Normal installation runs `npm ci` and builds the C
+archive checker, libmobi shared library (including XML/OPF), `wiz-mobi`,
+`mobitool`, `mobimeta` and the split Node bundles in `dist/`. Every vendor
+library is already in the clone (`vendor/`, pinned revisions recorded in
+`vendor/README.md`), so no fetch step is needed. The napi-rs ASCII addon is attempted when `cargo` is
 found and skipped with a notice otherwise. Generated output stays in ignored
 build/dist directories. `CC`, `AR`, `RUSTC` and `HIKARI_CARGO` may be executable
 paths; installers do not support shell fragments in tool variables. npm

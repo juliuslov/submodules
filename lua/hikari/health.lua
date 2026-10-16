@@ -7,7 +7,7 @@ function M.check()
   local root = require('hikari.paths').root
   for _, file in ipairs({ 'dist/cli.cjs', 'dist/index.cjs', 'build/wiz-archive', 'build/wiz-mobi', 'build/mobitool', 'build/mobimeta', 'vendor/kindleunpack/lib/mobi_header.py', 'vendor/dkjson/dkjson.lua' }) do
     if vim.fn.filereadable(root .. '/' .. file) == 1 then health.ok(file)
-    else health.error('Missing ' .. file .. '; initialize submodules, npm ci, npm run build') end
+    else health.error('Missing ' .. file .. '; run npm ci and npm run build (vendors are in-repository)') end
   end
   -- The native ASCII addon is optional: services/ascii/render/ is a complete
   -- TypeScript renderer, so image-to-ASCII works without a Rust toolchain.

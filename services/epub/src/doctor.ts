@@ -18,7 +18,7 @@ export function doctor(): object {
   let mobiNative: { available: boolean; version?: string; error?: string };
   let python: { available: boolean; version?: string; error?: string };
   try { mobiNative = { available: true, version: execFileSync(mobiBinary(), ['--version'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 }).trim() }; }
-  catch { mobiNative = { available: false, error: 'initialize submodules and run make mobi; WIZ_MOBI may override the binary' }; }
+  catch { mobiNative = { available: false, error: 'run make mobi (in-repository vendor/libmobi); WIZ_MOBI may override the binary' }; }
   try { python = { available: true, version: execFileSync(pythonBinary(), ['-c', 'import sys; assert sys.version_info >= (3, 8); print(sys.version.split()[0])'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 }).trim() }; }
   catch { python = { available: false, error: 'install Python >= 3.8 or set WIZ_PYTHON' }; }
   const kindleunpack = existsSync(join(ROOT, 'vendor/kindleunpack/lib/mobi_header.py'));
@@ -33,6 +33,9 @@ export function doctor(): object {
   try { calibre = { available: true, version: execFileSync(calibreBinary(), ['--version'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 }).trim() }; }
   catch { calibre = { available: false, error: 'optional: install Calibre ebook-convert or set HIKARI_CALIBRE; never downloaded automatically' }; }
   const kosync = { available: true, configured: Boolean(process.env.KOSYNC_USERNAME && (Boolean(process.env.KOSYNC_PASSWORD) !== Boolean(process.env.KOSYNC_USERKEY))), onlineCheck: false };
+  // In-repository vendored components: no Git submodule can be missing, only a
+  // partial copy of a vendor directory. Kept as `submodules` so existing Lua
+  // diagnostics keep working.
   return { plugin: 'hikari', libmobi, calibre, mobi, ascii, kosync, node: process.version, archive, submodules: {
     libmobi: existsSync(join(ROOT, 'vendor/libmobi/src/mobi.h')),
     kindleunpack,

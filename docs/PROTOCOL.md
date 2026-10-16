@@ -16,7 +16,7 @@ network; explicit KoSync requests use credentials from the runtime environment.
 | `formats` | none | static native/libmobi/Calibre capability catalog and unsupported formats |
 | `mobi-inspect` | `path` | version, compression, encoding, textBytes, records, title, author, language |
 | `libmobi-inspect` | `path` | legacy metadata plus publisher, description, ISBN, dates, copyright, ASIN, hybrid/KF8 flags |
-| `doctor` | none | node version, archive/ASCII/MOBI runtime availability, source submodule presence |
+| `doctor` | none | node version, archive/ASCII/MOBI runtime availability, vendored component presence |
 
 A chapter descriptor has `id`, archive-relative `href`, `mediaType`, and
 boolean `linear`. A scan query is a case-insensitive title/creator substring.
