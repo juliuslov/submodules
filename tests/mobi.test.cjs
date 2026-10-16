@@ -77,7 +77,7 @@ test('input magic, not source filename extension, determines the source format',
 });
 test('unsupported output, same-format request, bad input and missing paths fail cleanly', async t => {
   const f = standalone(t);
-  await assert.rejects(api.convertMobi(f.mobi, path.join(f.dir, 'out.azw3')), /must end/);
+  await assert.rejects(api.convertMobi(f.mobi, path.join(f.dir, 'out.azw3')), /explicit calibre/);
   await assert.rejects(api.convertMobi(f.mobi, path.join(f.dir, 'copy.mobi')), /must differ/);
   const broken = path.join(f.dir, 'bad.mobi'); fs.writeFileSync(broken, 'not mobi');
   await assert.rejects(api.convertMobi(broken, f.roundtrip), /input is not/);
@@ -138,4 +138,14 @@ test('empty image-only EPUB spine entries are omitted, without losing other chap
   assert.equal((await api.convertMobi(f.epub, f.mobi)).chapters, 1);
   await api.convertMobi(f.mobi, f.roundtrip);
   assert.match(api.readChapter(f.roundtrip, 0).text, /你好 reader/);
+});
+test('native MOBI guide and Contents links use exact UTF-8 byte offsets', t => {
+  const f = standalone(t);
+  const result = spawnSync(path.resolve('build/wiz-mobi'), ['text', f.mobi]);
+  assert.equal(result.status, 0);
+  const raw = result.stdout, positions = [...raw.toString().matchAll(/filepos="(\d{10})"/g)].map(match => Number(match[1]));
+  assert.equal(positions.length, book.chapters.length + 2);
+  assert.match(raw.subarray(positions[0]).toString(), /^<div id="hikari-generated-toc">/);
+  for (const offset of positions.slice(1)) assert.match(raw.subarray(offset).toString(), /^<h1>/);
+  assert.equal(positions[1], positions[2]);
 });

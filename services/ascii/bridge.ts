@@ -4,7 +4,7 @@ import { promisify } from 'node:util';
 import { ROOT } from '../epub/src/archive';
 const execute = promisify(execFile);
 export interface AsciiOptions { width?: number; height?: number; invert?: boolean; ramp?: string; background?: 'white' | 'black' }
-export function asciiBinary(): string { return process.env.WIZ_ASCII || join(ROOT, 'build/wiz-ascii'); }
+export function asciiBinary(): string { return process.env.HIKARI_ASCII || process.env.WIZ_ASCII || join(ROOT, 'build/wiz-ascii'); }
 export async function imageToAscii(path: string, options: AsciiOptions = {}): Promise<{ text: string; columns: number; rows: number }> {
   if (typeof path !== 'string' || !path || path.includes('\0')) throw new Error('image path is required');
   if (!options || typeof options !== 'object' || Array.isArray(options)) throw new Error('ASCII options must be an object');

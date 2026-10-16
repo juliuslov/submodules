@@ -1,3 +1,4 @@
+import { calibreBinary } from '../../mobi/calibre';
 import { mobiBinary, pythonBinary } from '../../mobi/convert';
 import { asciiBinary } from '../../ascii/bridge';
 import { execFileSync } from 'node:child_process';
@@ -20,8 +21,11 @@ export function doctor(): object {
   const kindleunpack = existsSync(join(ROOT, 'vendor/kindleunpack/lib/mobi_header.py'));
   const mobi = { available: mobiNative.available && python.available && kindleunpack,
     native: mobiNative, python, textOnly: true, exportFormat: 'MOBI6' };
+  let calibre: { available: boolean; version?: string; error?: string };
+  try { calibre = { available: true, version: execFileSync(calibreBinary(), ['--version'], { encoding: 'utf8', timeout: 5000, maxBuffer: 4096 }).trim() }; }
+  catch { calibre = { available: false, error: 'optional: install Calibre ebook-convert or set HIKARI_CALIBRE; never downloaded automatically' }; }
   const kosync = { available: true, configured: Boolean(process.env.KOSYNC_USERNAME && (Boolean(process.env.KOSYNC_PASSWORD) !== Boolean(process.env.KOSYNC_USERKEY))), onlineCheck: false };
-  return { mobi, ascii, kosync, node: process.version, archive, submodules: {
+  return { plugin: 'hikari', calibre, mobi, ascii, kosync, node: process.version, archive, submodules: {
     libmobi: existsSync(join(ROOT, 'vendor/libmobi/src/mobi.h')),
     kindleunpack,
     stb: existsSync(join(ROOT, 'vendor/stb/stb_image.h')),

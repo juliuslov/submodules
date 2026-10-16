@@ -1,7 +1,9 @@
+import { runCalibre } from './calibre';
+import { sourceFormat, type EbookFormat } from './formats';
 import { execFile } from 'node:child_process';
 import { openSync, closeSync, writeFileSync, unlinkSync, mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { extname, join } from 'node:path';
+import { extname, join, dirname } from 'node:path';
 import { promisify } from 'node:util';
 import { boundedRead, ROOT } from '../epub/src/archive';
 import { loadBook } from '../epub/src/reader';
@@ -18,11 +20,11 @@ export interface MobiInfo {
   textBytes: number; records: number; title: string; author: string; language: string;
 }
 export interface ConversionResult {
-  path: string; bytes: number; from: 'epub' | 'mobi'; to: 'epub' | 'mobi';
+  path: string; bytes: number; from: EbookFormat; to: EbookFormat; backend: 'native' | 'calibre';
   title: string; chapters: number; lossless: false; warnings: string[];
 }
-export function mobiBinary(): string { return process.env.WIZ_MOBI || join(ROOT, 'build/wiz-mobi'); }
-export function pythonBinary(): string { return process.env.WIZ_PYTHON || 'python3'; }
+export function mobiBinary(): string { return process.env.HIKARI_MOBI || process.env.WIZ_MOBI || join(ROOT, 'build/wiz-mobi'); }
+export function pythonBinary(): string { return process.env.HIKARI_PYTHON || process.env.WIZ_PYTHON || 'python3'; }
 function path(value: unknown): asserts value is string {
   if (typeof value !== 'string' || !value || value.includes('\0')) throw new Error('nonempty conversion paths are required');
 }
@@ -90,32 +92,59 @@ function epubText(input: string): BookInput {
   if (!book.chapters.length) throw new Error('EPUB contains no readable chapter text');
   return book;
 }
-/** Direction is inferred from the requested output extension, input from magic.
- * All parsing/verification completes before exclusive output creation. */
-export async function convertMobi(input: string, output: string): Promise<ConversionResult> {
+export interface ConversionOptions { backend?: 'native' | 'calibre'; timeoutMs?: number }
+function settings(options: ConversionOptions): { backend: 'native' | 'calibre'; timeout: number } {
+  if (!options || typeof options !== 'object' || Array.isArray(options) || Object.keys(options).some(key => !['backend', 'timeoutMs'].includes(key))) throw new Error('invalid conversion options');
+  const backend = options.backend ?? 'native', timeout = options.timeoutMs ?? 45000;
+  if (backend !== 'native' && backend !== 'calibre') throw new Error('conversion backend must be native or calibre');
+  if (!Number.isInteger(timeout) || timeout < 200 || timeout > 45000) throw new Error('Calibre timeout must be 200..45000 milliseconds');
+  return { backend, timeout };
+}
+/** Native remains the default. Calibre is explicit, never an automatic fallback.
+ * External outputs are re-read/validated before exclusive publication. */
+export async function convertMobi(input: string, output: string, options: ConversionOptions = {}): Promise<ConversionResult> {
   path(input); path(output);
+  const { backend, timeout } = settings(options);
   const extension = extname(output).toLowerCase();
-  if (extension !== '.mobi' && extension !== '.epub') throw new Error('conversion output must end in .mobi or .epub');
+  if (!['.mobi', '.epub', '.azw3'].includes(extension)) throw new Error('conversion output must end in .mobi or .epub (or .azw3 with Calibre)');
+  const target = extension.slice(1) as EbookFormat;
+  if (target === 'azw3' && backend !== 'calibre') throw new Error('AZW3 output requires the explicit calibre backend');
   return snapshot(input, async (file, bytes) => {
-    const source = bytes.subarray(0, 4).equals(Buffer.from([0x50, 0x4b, 0x03, 0x04])) ? 'epub'
-      : bytes.subarray(60, 68).toString('ascii') === 'BOOKMOBI' ? 'mobi' : undefined;
-    const target = extension === '.mobi' ? 'mobi' : 'epub';
-    if (!source) throw new Error('input is not an EPUB or supported MOBI Palm database');
-    if (source === target) throw new Error('input and output formats must differ');
+    const source = sourceFormat(bytes);
+    if (source === target && backend === 'native') throw new Error('input and output formats must differ');
+    if (source === 'azw3' && backend !== 'calibre') throw new Error('KF8/AZW3 input requires the explicit calibre backend');
     let book: BookInput, converted: Uint8Array;
-    if (source === 'mobi') {
-      ({ book } = await decode(file));
-      converted = createBytes(book);
-    } else {
-      book = epubText(file);
+    const directory = dirname(file);
+    if (source === 'epub') book = epubText(file);
+    else if (backend === 'native') ({ book } = await decode(file));
+    else {
+      const kindle = `${file}.${source}`;
+      writeFileSync(kindle, bytes, { mode: 0o600 });
+      const normalized = `${file}.normalized.epub`;
+      await runCalibre(kindle, normalized, directory, timeout);
+      book = epubText(normalized); // existing native ZIP/XML policy applies
+    }
+    if (target === 'epub') converted = createBytes(book);
+    else if (backend === 'native') {
       converted = createMobiBytes(book);
-      // Both pinned engines must accept an export before it is published.
       const check = `${file}.mobi`;
       writeFileSync(check, converted, { mode: 0o600 });
-      await decode(check);
+      await decode(check); // both pinned engines must accept native exports
+    } else {
+      const canonical = `${file}.canonical.epub`, generated = `${file}.generated.${target}`;
+      writeFileSync(canonical, createBytes(book), { mode: 0o600 });
+      converted = await runCalibre(canonical, generated, directory, timeout, target === 'mobi' ? ['--mobi-file-type', 'old'] : []);
+      if (sourceFormat(Buffer.from(converted)) !== target) throw new Error('Calibre produced the wrong output format');
+      if (target === 'mobi') await decode(generated); // retain the legacy export guard
+      else {
+        const verified = `${file}.verified.epub`;
+        await runCalibre(generated, verified, directory, timeout);
+        epubText(verified); // KF8 round-trip must produce a bounded readable EPUB
+      }
     }
     publish(output, converted);
-    return { path: output, bytes: converted.length, from: source, to: target,
-      title: book.title, chapters: book.chapters.length, lossless: false, warnings: [WARNING] };
+    return { path: output, bytes: converted.length, from: source, to: target, backend,
+      title: book.title, chapters: book.chapters.length, lossless: false,
+      warnings: [WARNING, ...(backend === 'calibre' ? ['External Calibre processing is not an OS/network sandbox; temporary disk use is not quota-limited.'] : [])] };
   });
 }

@@ -7,7 +7,7 @@ import { memberPath } from './paths';
 import type { Inventory } from './types';
 export const ROOT = resolve(__dirname, '..');
 export const MAX_ARCHIVE = 64 * 1024 * 1024;
-export function archiveBinary(): string { return process.env.WIZ_ARCHIVE || join(ROOT, 'build/wiz-archive'); }
+export function archiveBinary(): string { return process.env.HIKARI_ARCHIVE || process.env.WIZ_ARCHIVE || join(ROOT, 'build/wiz-archive'); }
 
 export function boundedRead(path: string, limit: number): Buffer {
   const fd = openSync(path, constants.O_RDONLY | (constants.O_NONBLOCK || 0));

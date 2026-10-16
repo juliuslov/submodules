@@ -1,4 +1,10 @@
-# Text-focused EPUB ↔ legacy MOBI conversion
+# hikari: EPUB, MOBI and optional KF8/AZW3 conversion
+
+hikari is a standalone Neovim plugin (`require('hikari')`, `:HikariConvert`).
+The repository URL remains juliuslov/submodules. The native/default engine is
+described below; **extended formats require explicit `{ backend: 'calibre' }`**,
+`:HikariConvert!`, or the CLI's final `calibre` argument. See the extended engine
+section at the end. No fallback or automatic Calibre install is performed.
 
 The companion now converts in **both directions**, offline. Two actual pinned
 Git submodules perform meaningful work:
@@ -41,8 +47,8 @@ node scripts/build.mjs
 
 Keep the checkout's `services/mobi/python/` and `vendor/kindleunpack/` alongside
 `dist/`; copying the bundled JS file alone is not a complete installation.
-Overrides: `WIZ_MOBI=/absolute/path/to/wiz-mobi`, `WIZ_PYTHON=/path/to/python3`.
-These are executable paths, not shell command strings. `WIZ_ARCHIVE` remains
+Overrides: `HIKARI_MOBI=/absolute/path/to/wiz-mobi`, `HIKARI_PYTHON=/path/to/python3`.
+The corresponding `WIZ_*` variables remain fallbacks. These are executable paths, not shell command strings. `WIZ_ARCHIVE` remains
 the EPUB archive-checker override.
 
 ## CLI
@@ -51,7 +57,7 @@ the EPUB archive-checker override.
 node dist/cli.cjs mobi-convert '/books/source.epub' '/books/new.mobi'
 node dist/cli.cjs mobi-inspect '/books/new.mobi'
 node dist/cli.cjs mobi-convert '/books/legacy.mobi' '/books/new.epub'
-# Open the converted EPUB with :WizEpubOpen /books/new.epub
+# Open the converted EPUB with :HikariOpen /books/new.epub
 ```
 
 Output extension `.mobi` or `.epub` determines direction; input format is
@@ -74,18 +80,19 @@ and inspection APIs make private bounded snapshots before invoking the parsers.
 ## Neovim / Lua
 
 ```vim
-:WizMobiInspect /books/legacy.mobi
-:WizMobiConvert /books/source.epub /books/new.mobi
-:WizMobiConvert /books/legacy.mobi /books/new.epub
-:WizEpubOpen /books/new.epub
+:HikariMobiInspect /books/legacy.mobi
+:HikariConvert /books/source.epub /books/new.mobi
+:HikariConvert /books/legacy.mobi /books/new.epub
+:HikariOpen /books/new.epub
 ```
 
 Escape spaces with backslashes in a multi-argument Ex command, or use Lua to
 avoid Ex parsing entirely. No automatic conversion runs at startup or on open.
-The native reading workspace reads EPUB, not MOBI directly.
+The native rendering workspace reads EPUB. `:HikariOpen legacy.mobi` now
+creates an ephemeral EPUB first, then removes it on close/replacement/error/exit.
 
 ```lua
-local mobi = require('wizardo_services.mobi')
+local mobi = require('hikari.mobi')
 mobi.convert('/books/a book.epub', '/books/a book.mobi', function(err, result)
   if err then vim.notify(err, vim.log.levels.ERROR); return end
   vim.print(result.path, result.warnings)
@@ -123,7 +130,7 @@ Byte counts above are illustrative. `mobi-inspect` requires `path` and returns
 `title`, `author`, `language` under the normal service `data` envelope.
 Errors use stderr `{ "ok": false, "error": "..." }`, exit status 1.
 
-## Deliberate limits and fidelity
+## Native backend: deliberate limits and fidelity
 
 * Import: **DRM-free legacy MOBI6/7** only; PalmDOC compression or uncompressed
   text; ebook type 2; UTF-8 or Windows-1252. MOBI header must be at least 232
@@ -181,3 +188,73 @@ Errors use stderr `{ "ok": false, "error": "..." }`, exit status 1.
 
 See [research](RESEARCH.md), [architecture](ARCHITECTURE.md), and
 [validation](VALIDATION.md) for source inspection and actual test scope.
+
+
+## Optional Calibre backend: broader conversion
+
+Research in the Calibre FAQ, CLI, MOBI input/output plugins and MobiReader
+confirms support for KF8/AZW3, hybrid containers and HUFF/CDIC decompression.
+Hikari uses a separately installed **ebook-convert**, not an unused source
+submodule. Set `HIKARI_CALIBRE` (fallback `WIZ_CALIBRE`) to override its path.
+
+```sh
+node dist/cli.cjs convert legacy.azw3 new.epub calibre
+node dist/cli.cjs convert hybrid.mobi new.epub calibre
+node dist/cli.cjs convert source.epub new.azw3 calibre
+node dist/cli.cjs convert source.epub new.mobi calibre
+```
+
+```lua
+require('hikari').convert('legacy.azw3', 'new.epub',
+  { backend = 'calibre', timeoutMs = 45000 }, function(err, result)
+    if not err then vim.print(result.path, result.warnings) end
+  end)
+```
+
+`convert` is the generic CLI/RPC action; `mobi-convert` remains an alias. RPC
+uses `conversion: { backend: 'native' | 'calibre', timeoutMs?: number }`. The
+old two-path TS function and three-argument Lua callback forms still work.
+Results include the selected `backend`, plus `from`/`to` (`epub`, `mobi`, `azw3`).
+`formats` / `:HikariFormats` returns a static capability catalog; `doctor` checks
+actual installed tool availability. Same-format normalization is allowed only
+when Calibre is explicitly requested.
+
+The adapter checks the PDB container and primary encryption flag first. It
+normalizes extended Kindle input to EPUB, checks that EPUB with the existing
+ZIP/XML policy, flattens readable text, and writes a fresh publication. Calibre
+exports receive a clean, generated text EPUB, never arbitrary original EPUB
+markup. Old MOBI output requests `--mobi-file-type old` and still must pass both
+pinned decoders. AZW3 output must have a KF8 header and round-trip through
+Calibre to a bounded readable EPUB. This is NOT independent KF8 certification.
+
+Each external invocation gets a private cwd and fresh configuration/cache/temp
+paths, so normal-profile third-party plugins are not loaded. Input and completed
+intermediate output are capped at 64 MiB. A 1 MiB total log budget and a
+200..45000 ms deadline apply; the POSIX process group is killed on timeout,
+log overflow or process completion so helper children are not left running.
+Lua conversion requests allow 180 seconds for multi-step work. Existing output
+files and symlinks are never overwritten, even with a command bang.
+
+**Important limits:** all conversions remain text-focused; this is not a new
+lossless/rich-layout converter. There is no DRM removal, KFX/Topaz support,
+dictionary or print-replica conversion, generic PRC/PDB support, or automatic
+network/download pipeline. Calibre scratch disk use is NOT quota-limited before
+the output checks. Process isolation/fresh config are NOT an OS/network sandbox;
+use platform sandboxing for hostile input. Calibre is separately installed
+GPL-3.0 software; no combined-distribution license guarantee is implied.
+
+External-engine tests use a fake executable for protocol, argv/flags, private
+configuration, output checks, timeouts and failures. **Real Calibre was not
+installed here.** A separately gated integration test can be run with
+`HIKARI_TEST_REAL_CALIBRE=1 npm test` after installation. No real KF8, physical
+Kindle or Amazon delivery-service validation is claimed by the fake tests.
+
+## Improved native MOBI navigation
+
+The native writer now regenerates an end-of-book Contents page plus `toc` and
+`text` guide references. File positions use fixed-width decimal offsets into
+UTF-8 bytes (not JS character indices). The pinned decoders validate the book;
+tests also follow every generated link to its expected markup. The importer
+skips the specially marked generated TOC so EPUB round-trips do not gain a
+spurious Contents chapter. This follows the format behavior documented by
+Calibre's FAQ/writer, but physical Kindle behavior remains unverified.

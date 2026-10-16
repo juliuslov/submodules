@@ -14,4 +14,6 @@ export type { KoSyncConfig, ProgressUpdate, ProgressState } from '../../kosync/t
 
 export { convertMobi, inspectMobi } from '../../mobi/convert';
 export { createMobiBytes } from '../../mobi/writer';
-export type { MobiInfo, ConversionResult } from '../../mobi/convert';
+export type { MobiInfo, ConversionResult, ConversionOptions } from '../../mobi/convert';
+
+export { conversionFormats } from '../../mobi/formats';

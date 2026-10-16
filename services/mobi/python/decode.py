@@ -43,6 +43,7 @@ class TextBook(HTMLParser):
         self.parts = []
         self.chapters = []
         self.total_bytes = 0
+        self.toc_depth = 0
 
     def finish_chapter(self):
         text = re.sub(r' *\n *', '\n', re.sub(r'[ \t]+', ' ', ''.join(self.parts)))
@@ -72,6 +73,13 @@ class TextBook(HTMLParser):
         self.parts, self.title = [], ''
 
     def handle_starttag(self, tag, attrs):
+        if self.toc_depth:
+            if tag == 'div':
+                self.toc_depth += 1
+            return
+        if tag == 'div' and dict(attrs).get('id') == 'hikari-generated-toc':
+            self.toc_depth = 1
+            return
         if tag in self.IGNORED:
             self.ignored.append(tag)
             return
@@ -90,6 +98,10 @@ class TextBook(HTMLParser):
                 self.parts.append('[Image: ' + clean(alt) + ']')
 
     def handle_endtag(self, tag):
+        if self.toc_depth:
+            if tag == 'div':
+                self.toc_depth -= 1
+            return
         if tag in self.IGNORED:
             if tag in self.ignored:
                 self.ignored.remove(tag)
@@ -103,7 +115,7 @@ class TextBook(HTMLParser):
             self.parts.append('\n\n')
 
     def handle_data(self, text):
-        if self.ignored:
+        if self.ignored or self.toc_depth:
             return
         if self.heading is not None:
             self.heading.append(text)
@@ -121,7 +133,7 @@ class TextBook(HTMLParser):
 def decode(path):
     # The native inspector bounds and decompresses the same immutable snapshot
     # before the independent Python implementation is allowed to decode it.
-    binary = os.environ.get('WIZ_MOBI', str(ROOT / 'build/wiz-mobi'))
+    binary = os.environ.get('HIKARI_MOBI') or os.environ.get('WIZ_MOBI', str(ROOT / 'build/wiz-mobi'))
     result = subprocess.run([binary, 'inspect', path], stdout=subprocess.PIPE,
                             stderr=subprocess.PIPE, timeout=15, check=False)
     if result.returncode:

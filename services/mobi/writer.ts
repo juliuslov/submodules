@@ -24,23 +24,33 @@ export function createMobiBytes(input: BookInput): Buffer {
   const language = checked(input.language, 'language', 128);
   if (!/^[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*$/.test(language)) throw new Error('invalid MOBI language tag');
   if (!Array.isArray(input.chapters) || !input.chapters.length || input.chapters.length > 256) throw new Error('MOBI requires 1..256 chapters');
-  const parts = ['<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>', xmlText(title), '</title></head><body>'];
+  const parts = ['<html><head><meta http-equiv="Content-Type" content="text/html; charset=utf-8"/><title>', xmlText(title), '</title><guide><reference type="toc" title="Contents" filepos="0000000000" /><reference type="text" title="Start" filepos="0000000000" /></guide></head><body>'];
   let markupBytes = parts.reduce((n, part) => n + Buffer.byteLength(part), 0);
   const append = (part: string): void => {
     markupBytes += Buffer.byteLength(part);
     if (markupBytes > MAX_TEXT) throw new Error('MOBI expanded markup exceeds 8 MiB');
     parts.push(part);
   };
+  const positions: number[] = [], headings: string[] = [];
   for (const [i, chapter] of input.chapters.entries()) {
     if (!chapter || typeof chapter !== 'object') throw new Error('invalid MOBI chapter');
     const heading = checked(chapter.title, 'chapter title');
     const text = checked(chapter.text, 'chapter text', 1024 * 1024);
     if (i) append('<mbp:pagebreak/>');
+    positions.push(markupBytes); headings.push(heading);
     append(`<h1>${xmlText(heading)}</h1>`);
     for (const paragraph of text.replace(/\r\n?/g, '\n').split(/\n\s*\n/)) append(`<p>${xmlText(paragraph).replace(/\n/g, '<br/>')}</p>`);
   }
-  append('</body></html>');
-  const raw = Buffer.from(parts.join(''), 'utf8');
+  append('<mbp:pagebreak/>');
+  const toc = markupBytes;
+  append('<div id="hikari-generated-toc"><h1>Contents</h1>');
+  for (const heading of headings) append(`<p><a filepos="0000000000">${xmlText(heading)}</a></p>`);
+  append('</div></body></html>');
+  const destinations = [toc, positions[0], ...positions];
+  let destination = 0;
+  // Fixed-width ASCII replacements preserve UTF-8 byte positions, not JS indices.
+  const markup = parts.join('').replace(/filepos="0000000000"/g, () => `filepos="${String(destinations[destination++]).padStart(10, '0')}"`);
+  const raw = Buffer.from(markup, 'utf8');
   if (raw.length > MAX_TEXT) throw new Error('MOBI expanded markup exceeds 8 MiB');
   const textRecords: Buffer[] = [];
   for (let start = 0; start < raw.length;) {
