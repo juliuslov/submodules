@@ -97,3 +97,33 @@ conformance certificate. No physical Kindle, Amazon delivery-service,
 EPUBCheck, macOS or real Neovim run was performed. `tests/headless.lua` was
 extended for MOBI conversion but still requires a locally installed Neovim.
 No GitHub workflow was added. See [MOBI limits and licenses](MOBI.md).
+
+
+## hikari plugin and extended conversion — 2026-10-16
+
+* Full clean-build regression: **11 archive C/Python + 11 Rust + 15 MOBI
+  C/Python + 62 passing Node tests**. **One additional real-Calibre integration
+  test is skipped** unless `HIKARI_TEST_REAL_CALIBRE=1` is set with Calibre
+  installed. Strict TypeScript checks pass.
+* Lua harness: **19 service + 21 reader + 14 hikari plugin/lifecycle tests**,
+  plus real Lua → Node → C/Python conversion/ASCII/checksum integrations.
+  **153 tests pass total, one optional test skipped**, plus integration assertions.
+* New plugin cases cover canonical/legacy module identity, standalone/idempotent
+  setup, command dispatch/arity/completion, callback signatures, temporary MOBI
+  reading cleanup, stale requests, close during conversion, errors, and exit.
+* External-engine tests use a **fake ebook-convert** for argv/flags, fresh
+  configuration, KF8-shaped header routing, round-trip orchestration, native
+  export checks, encrypted/corrupt/symlink output rejection, missing executable,
+  timeout/log limits, private-directory cleanup and CLI/RPC behavior. These
+  tests do **not** prove real KF8/HUFF decoding; that capability is based on
+  reviewed upstream source, with a gated actual-tool test provided.
+* Native MOBI Contents/guide byte offsets are followed directly in decoded
+  multibyte UTF-8 markup. Existing chapter/metadata round-trips still pass;
+  generated TOCs are not duplicated as imported text chapters.
+
+Neovim v0.11.5 release downloads redirect to a host outside this sandbox's
+allowlist; Neovim is still unavailable. The expanded `tests/headless.lua`
+includes plugin loading and direct temporary-MOBI reading but was **not run**.
+Real Calibre, physical Kindle, Amazon delivery-service, EPUBCheck and macOS
+validation remain unperformed. No GitHub workflow was added. The model and fake
+engine tests are explicitly not presented as real-editor or device validation.

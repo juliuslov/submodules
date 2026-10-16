@@ -25,7 +25,7 @@ decodes the same in-memory bytes. Temporary snapshots are removed in `finally`.
 Do not replace this with a check of the original filename followed by a second
 read: that would allow a time-of-check/time-of-use mismatch.
 
-The Lua namespace is `wizardo_services`, not `kaeru`. The bridge discovers the
+The Lua namespace is `hikari`, not `kaeru`. The bridge discovers the
 actual upstream process helper with `pcall(require, 'kaeru.process')`. It does
 not claim an upstream extension hook exists. Startup registers only `Wiz*`
 commands, leaving existing commands untouched; no work starts automatically.
@@ -58,7 +58,7 @@ these additions do not silently relicense all existing original code.
 * `services/kosync/*.ts`: protocol client, validated requests, bounded HTTPS
   responses, KOReader-compatible document checksums, environment-based CLI
   credential loading. There are no requests at module import or startup.
-* `lua/wizardo_services/{ascii,kosync}.lua`: companion APIs and commands.
+* `lua/hikari/{ascii,kosync}.lua`: companion APIs and commands.
   KoSync pulls display opaque progress only. Push commands require `!`.
 
 Tests for KoSync bind ephemeral loopback servers; they do not use public
@@ -67,7 +67,7 @@ credentials or public services. Rust tests run through `make test-ascii`.
 
 ## Native EPUB reading workspace
 
-`lua/wizardo_services/reader/` separates terminal geometry, UTF-8 wrapping,
+`lua/hikari/reader/` separates terminal geometry, UTF-8 wrapping,
 window-scoped theme definitions and the asynchronous reader state machine.
 The generic diagnostics/ASCII `ui.show` API stays separate. `ui.open` delegates
 to the reader; no browser dependencies or mobile framework are introduced.
@@ -97,3 +97,26 @@ CPU/address-space caps. Snapshot cleanup runs in `finally`. No network requests,
 startup conversion, automatic DRM processing or upstream resource extraction
 are used. No lossless fidelity or format-conformance certification is claimed.
 See [MOBI behavior and component licenses](MOBI.md).
+
+
+## First-class hikari plugin
+
+`plugin/hikari.lua` registers commands without building or launching services.
+`lua/hikari/` is canonical; the old `lua/wizardo_services/` files are thin aliases
+returning the same modules, so configuration/reader state is not duplicated.
+`doc/hikari.txt` provides tagged help and `lua/hikari/health.lua` provides
+`:checkhealth hikari`. The lazy.nvim spec sets name/main explicitly because the
+GitHub repository is still juliuslov/submodules. installer.nvim is not required.
+
+`book.lua` owns temporary EPUB conversions for direct MOBI opening. Request
+epochs prevent a stale conversion from reopening a reader after close or
+replacement. Reader close callbacks remove converted output; bounded workers
+finish their own private-snapshot cleanup even if their display result is stale.
+A VimLeavePre hook closes the active reader.
+
+The optional Calibre adapter is in `services/mobi/calibre.ts`, with container
+preflight/capabilities in `formats.ts`. It uses private cwd/config/cache/temp
+paths, argv, log/output limits, process-group deadlines, no auto-install or
+fallback, and post-conversion validation. Fresh profiles avoid loading the
+normal user's third-party Calibre plugins. This is still not an OS/network or
+disk-quota sandbox. See [external-engine details](MOBI.md).

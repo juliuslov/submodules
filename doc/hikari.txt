@@ -1,0 +1,182 @@
+*hikari.txt*                    hikari ebook reader and converter
+
+CONTENTS                                                    *hikari*
+  1. Installation                       |hikari-install|
+  2. Commands                           |hikari-commands|
+  3. Configuration                      |hikari-config|
+  4. Lua API                            |hikari-api|
+  5. Conversion formats and safety      |hikari-formats|
+  6. Migration                          |hikari-migration|
+
+==============================================================================
+1. Installation                                             *hikari-install*
+
+hikari is a standalone Neovim plugin. installer.nvim is NOT a dependency.
+The repository URL remains https://github.com/juliuslov/submodules ; its plugin
+name and Lua namespace are hikari. The implementation is on the open PR branch
+arena/fc59f9a1-submodules until merged.
+
+Requirements: Neovim >= 0.10, Node >= 22, npm, C99 compiler, Make, ar, Rust >= 1.70,
+and Python >= 3.8. Supported platform family: POSIX Linux/macOS (Linux tested).
+Optional extended conversion requires a separately installed Calibre ebook-convert.
+
+Initialize/build in the plugin checkout: >sh
+    git submodule update --init --recursive
+    npm ci
+    npm run build
+<
+Use the lazy.nvim specification in examples/lazy.lua. It explicitly sets
+name = 'hikari' and main = 'hikari', without any installer.nvim dependency.
+For a manual native-package installation, clone the repository under
+stdpath('data')/site/pack/plugins/start/hikari and build it there. For a manual
+runtimepath installation: >lua
+    vim.opt.runtimepath:prepend('/absolute/path/to/hikari')
+    require('hikari').setup({ reader = { theme = 'auto' } })
+<
+Generate help tags with :helptags /absolute/path/to/hikari/doc if your plugin
+manager does not do so. Run :checkhealth hikari and :HikariDoctor after building.
+No service build, download, conversion or network request runs at startup.
+
+==============================================================================
+2. Commands                                                  *hikari-commands*
+
+:Hikari                         Open this help.
+:Hikari help                    Open this help.
+:Hikari open {book}              Same as :HikariOpen.
+:Hikari convert {in} {out}       Same as :HikariConvert.
+:Hikari! convert {in} {out}      Select the optional Calibre backend.
+:Hikari inspect {book}           Inspect EPUB or native-supported legacy MOBI.
+:Hikari formats                 Show engine capabilities (not installed status).
+:Hikari doctor                  Show installed runtime/build availability.
+:Hikari close                   Close the reader/cancel pending display requests.
+
+:HikariOpen[!] {book}                                  *:HikariOpen*
+    Open EPUB directly. MOBI/PRC/AZW/AZW3 extensions trigger temporary conversion
+    to EPUB. ! explicitly selects Calibre for unsupported Kindle variants.
+    Originals are not modified. The converted EPUB is deleted on reader close,
+    replacement, conversion error, or editor exit. A superseded request cannot
+    reopen the reader later. Pending bounded workers may finish in the background
+    so their own snapshots are cleaned; their display callbacks are ignored.
+
+:HikariConvert[!] {input} {output}                      *:HikariConvert*
+    Direction comes from output .epub/.mobi/.azw3. ! selects Calibre; it NEVER
+    permits overwriting. Parent directories must exist. Escape spaces in Ex
+    arguments with backslashes, or use the Lua API below.
+
+:HikariInspect {book}                                  *:HikariInspect*
+    Native EPUB/legacy-MOBI metadata inspection, not an external KF8 inspector.
+:HikariDoctor                                         *:HikariDoctor*
+    Runtime diagnostics; missing optional Calibre does not break native features.
+:HikariFormats                                        *:HikariFormats*
+    Supported format/engine catalog. Use doctor to check installed tools.
+:HikariClose                                          *:HikariClose*
+    Close the reader, discard temporary converted content and invalidate requests.
+:HikariLibrary {directory}                            *:HikariLibrary*
+    Nonrecursive local EPUB inventory/search service.
+:HikariAscii {image}                                  *:HikariAscii*
+    Render an image as ASCII using the Rust service.
+:HikariEpubExport {new.epub}                           *:HikariEpubExport*
+    Export the current buffer as one plain-text EPUB chapter, without overwriting.
+
+Specific EPUB, archive, and KoSync commands also retain Hikari-prefixed names:
+HikariEpubOpen, HikariEpubClose, HikariEpubInspect, HikariMobiInspect,
+HikariArchiveInspect, HikariKoSyncAuth, HikariKoSyncRegister, HikariKoSyncDocument,
+HikariKoSyncPull and HikariKoSyncPush!. KoSync push requires an explicit ! and
+is never automatic. See docs/KOSYNC.md for credentials and opaque positions.
+
+Reader controls: n/p chapters, t contents, d local light/dark theme, q close.
+The Ghost-inspired reader adapts to small terminals; it is not a phone app.
+
+==============================================================================
+3. Configuration                                             *hikari-config*
+>lua
+    require('hikari').setup({
+      node = 'node',
+      -- cli = '/absolute/path/to/plugin/dist/cli.cjs',
+      reader = { theme = 'auto' }, -- auto, dark, light
+      env = {
+        -- HIKARI_CALIBRE = '/path/to/ebook-convert',
+        -- HIKARI_PYTHON = '/path/to/python3',
+      },
+    })
+<
+setup() is optional for defaults and safe to repeat. It registers commands when
+adding runtimepath manually. No global colorscheme is changed. Runtime env is
+passed through argv/JSON process calls, never shell interpolation.
+
+Set vim.g.hikari_author and vim.g.hikari_language for buffer-to-EPUB export.
+HIKARI_ARCHIVE / HIKARI_ASCII / HIKARI_MOBI override native executable paths.
+HIKARI_PYTHON overrides python3. HIKARI_CALIBRE overrides ebook-convert.
+The corresponding WIZ_* variables remain fallbacks. Defaults use the checkout's
+build/wiz-* binaries, whose internal filenames are preserved for compatibility.
+
+==============================================================================
+4. Lua API                                                   *hikari-api*
+>lua
+    local hikari = require('hikari')
+    hikari.open('/books/book.epub')
+    hikari.open('/books/book.mobi')
+    hikari.open('/books/book.azw3', { backend = 'calibre' })
+    hikari.close()
+    hikari.convert('/books/in.epub', '/books/new.mobi', function(err, result)
+      if err then vim.notify(err, vim.log.levels.ERROR); return end
+      vim.print(result.path, result.warnings)
+    end)
+    hikari.convert('/books/in.azw3', '/books/new.epub',
+      { backend = 'calibre', timeoutMs = 45000 }, function(err, result)
+        if not err then vim.print(result) end
+      end)
+    require('hikari.epub').inspect('/books/book.epub', callback)
+    require('hikari.mobi').inspect('/books/book.mobi', callback)
+<
+Callbacks use (error, data). hikari.mobi.convert has the same signatures as
+hikari.convert; the original three-argument callback form remains supported.
+Other modules: hikari.reader, hikari.ascii, hikari.kosync, hikari.library.
+
+==============================================================================
+5. Conversion formats and safety                             *hikari-formats*
+
+Native/default: DRM-free MOBI6/7 with uncompressed or PalmDOC text; EPUB input
+and output; new deterministic UTF-8 MOBI6 output with generated Contents/guide
+links using UTF-8 byte offsets. Both pinned libmobi and KindleUnpack decoders
+must accept MOBI exports. UTF-8 and Windows-1252 import are supported.
+
+Optional Calibre: upstream handles KF8/AZW3, hybrid MOBI/KF8 and HUFF/CDIC input.
+hikari passes these through a separately installed ebook-convert, then applies
+its existing EPUB/text policy. Exports support EPUB, old MOBI6 and AZW3. MOBI
+exports still pass both pinned decoders; AZW3 exports must round-trip through
+Calibre into a readable bounded EPUB. There is no automatic fallback/download.
+
+All paths are TEXT-FOCUSED, NOT LOSSLESS. Images, fonts, CSS/layout, original
+links/navigation and rich metadata are not preserved. KFX, Topaz, DRM removal,
+dictionaries, print replicas and non-MOBI PRC/PDB files are not supported.
+
+Inputs/intermediate outputs max 64 MiB; PDB max 4096 records. Native text and
+writer chapter/markup limits still apply (see docs/MOBI.md). External processing
+has a 200..45000 ms deadline per invocation, a 1 MiB diagnostic budget, private
+working/config/cache/temp directories, and process-group termination. Final
+outputs are validated and exclusively created with no overwrite/symlink follow.
+Calibre temporary disk use is NOT quota-limited. Neither backend is an OS or
+network sandbox: isolate hostile books using platform sandboxing.
+
+The external adapter has protocol/failure tests using a fake executable. Real
+Calibre and real Neovim were unavailable in this sandbox; do not interpret those
+tests as physical Kindle, EPUBCheck or full format-conformance certification.
+
+Dependencies retain their licenses: four earlier MIT submodules, LGPL-3.0+
+libmobi, GPL-3.0 KindleUnpack and GPL-3.0-only Python adapter. Calibre is separately
+installed GPL-3.0 software. Original non-Python companion code still has no
+general distribution grant (package license UNLICENSED). See docs/MOBI.md.
+
+==============================================================================
+6. Migration                                                 *hikari-migration*
+
+require('wizardo_services') and its existing submodules alias the canonical
+hikari module objects, sharing configuration and reader state (no duplicate
+implementation). Existing Wiz* commands remain aliases and do not replace
+already-registered user commands. New integrations should use hikari/Hikari*.
+
+The GitHub repository has NOT been renamed. No nonexistent juliuslov/hikari
+repository or upstream installer.nvim integration is implied.
+
+ vim:tw=78:ts=8:noet:ft=help:norl:

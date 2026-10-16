@@ -71,13 +71,13 @@ api.nvim_win_close = function(w)
 end
 api.nvim_buf_delete = function(b) buffers[b] = nil; maps[b] = nil end
 local inspect, reads
-package.loaded['wizardo_services.epub'] = {
+package.loaded['hikari.epub'] = {
   inspect = function(_, cb) inspect = cb end,
   read = function(_, index, cb) reads[#reads + 1] = { index = index, callback = cb } end,
 }
-local Reader = require('wizardo_services.reader')
-local Layout = require('wizardo_services.reader.layout')
-local Text = require('wizardo_services.reader.text')
+local Reader = require('hikari.reader')
+local Layout = require('hikari.reader.layout')
+local Text = require('hikari.reader.text')
 local info = { title = 'A quieter kind of reading', creators = { 'Nguyễn An' }, chapters = {
   { href = 'EPUB/first-chapter.xhtml' }, { href = 'EPUB/second-chapter.xhtml' }, { href = 'EPUB/third.xhtml' },
 } }
@@ -118,7 +118,7 @@ test('desktop reader has sidebar, bounded text and local Ghost theme', function(
   assert(content(reader.panes.header):find('GHOST / READER', 1, true))
   assert(content(reader.panes.body):find('First chapter', 1, true))
   assert(vim.bo[reader.panes.body.buf].buftype == 'nofile' and not vim.bo[reader.panes.body.buf].modifiable)
-  assert(current == reader.panes.body.win and highlights.WizGhostAccent.fg == '#48d6ad')
+  assert(current == reader.panes.body.win and highlights.HikariGhostAccent.fg == '#48d6ad')
 end)
 test('narrow reader uses a dismissible full-width chapter drawer', function()
   local reader = loaded(40, 24)
@@ -152,7 +152,7 @@ test('theme toggle is scoped to reader windows', function()
   local reader = loaded()
   reader:toggle_theme()
   assert(reader.theme == 'light' and vim.o.background == 'dark')
-  assert(highlights.WizGhostAccent.fg == '#137b60')
+  assert(highlights.HikariGhostAccent.fg == '#137b60')
 end)
 test('footer controls are clickable without treating the status line as a button', function()
   local reader = loaded(40, 24)

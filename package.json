@@ -1,7 +1,7 @@
 {
-  "name": "wizardo-submodule-services",
-  "version": "1.0.0",
-  "description": "C Rust Lua TypeScript EPUB MOBI ASCII and KoSync companion services for installer.nvim",
+  "name": "hikari.nvim-services",
+  "version": "1.1.0",
+  "description": "hikari: standalone Neovim EPUB and MOBI reader, ebook conversion, ASCII and KoSync services",
   "directories": {
     "doc": "docs",
     "test": "tests"

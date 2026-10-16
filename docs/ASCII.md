@@ -38,11 +38,11 @@ Success data: `{ "text": "...\n", "columns": 100, "rows": 30 }`. Runtime
 Neovim:
 
 ```lua
-require('wizardo_services.ascii').open('/path/photo.png', { width = 100 })
-require('wizardo_services.ascii').convert('/path/photo.png', {}, function(err, result)
+require('hikari.ascii').open('/path/photo.png', { width = 100 })
+require('hikari.ascii').convert('/path/photo.png', {}, function(err, result)
   if not err then vim.print(result.text) end
 end)
 ```
 
-`:WizAscii /path/photo.png` opens a nonmodifiable scratch buffer. Nothing runs
+`:HikariAscii /path/photo.png` opens a nonmodifiable scratch buffer. Nothing runs
 at startup. Build the service before invoking it.

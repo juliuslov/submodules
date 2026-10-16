@@ -1,237 +1,201 @@
-# Wizardo companion submodules
+# hikari
 
-C, Rust, Lua, and TypeScript companion services for
-[`getwizardo/installer.nvim`](https://github.com/getwizardo/installer.nvim).
-Includes **EPUB reading and generation**, **EPUB ↔ legacy MOBI conversion**,
-**image-to-ASCII in Rust**, a
-**KOReader KoSync client**, native ZIP checks, local library search, and diagnostics.
+A **standalone Neovim ebook reader and converter**, with a Ghost-inspired,
+responsive terminal reading workspace. Read EPUB, open legacy MOBI through a
+temporary EPUB conversion, and optionally use Calibre for KF8/AZW3 and more
+MOBI variants. Includes EPUB generation, image-to-ASCII and an explicit KoSync
+client. No installer.nvim dependency, browser, database, or startup downloads.
 
-This is a standalone companion in `juliuslov/submodules`, **not a patch already
-merged into installer.nvim**. Upstream calls its Lua modules `kaeru`. We use
-`kaeru.process.run` when installed and otherwise use `vim.system`; no upstream
-commands or configuration keys are replaced.
+**Plugin name:** `hikari` · **Lua:** `require('hikari')` · **Help:** `:help hikari`
 
-## Build and test
+The repository URL is still **`juliuslov/submodules`**. It has not been renamed
+on GitHub. The six pinned Git submodules are implementation dependencies, not
+the plugin's public name. The feature is on [PR #1](https://github.com/juliuslov/submodules/pull/1).
 
-Requirements: Node **22+**, npm, a C99 compiler, Rust 1.70+ (`rustc`), `ar`, Make, and **Python 3.8+** for MOBI conversion and native
-tests. Target platforms: POSIX Linux/macOS. Neovim **0.10+** is recommended for
-the companion UI; `kaeru.process` also supplies an older-Neovim process fallback.
-Local EPUB/MOBI/ASCII operations need no GUI, server, database, or network. KoSync
-uses the network only when you explicitly request registration, auth, pull, or push.
+## Install with lazy.nvim
 
-```sh
-cd /path/to/submodules
-git submodule update --init --recursive
-npm ci
-npm test                    # build, strict TS check, C/Python/Rust/Node tests
-npm run doctor
-```
-
-The build writes ignored `build/` and `dist/` directories, not library sources.
-`fflate` is bundled **from its pinned submodule**, not from an npm ZIP package.
-`fast-xml-parser` and build tooling are exactly pinned in `package-lock.json`.
-
-| Git submodule | Used by | Purpose |
-| --- | --- | --- |
-| `vendor/miniz` | C | ZIP directory, decompression and CRC integrity checks |
-| `vendor/fflate` | TypeScript | EPUB ZIP read/write |
-| `vendor/stb` | Rust via C shim | PNG/JPEG/BMP/PNM decoding for ASCII |
-| `vendor/dkjson` | Lua | JSON fallback outside Neovim / without `vim.json` |
-| `vendor/libmobi` | C shared library | Legacy MOBI validation, metadata and text decompression (LGPL-3.0+) |
-| `vendor/kindleunpack` | Python subprocess | Independent legacy MOBI text decoding (GPL-3.0) |
-
-See [research sources and pins](docs/RESEARCH.md). Keep upstream licenses in the
-submodules; the two MOBI dependencies have copyleft licenses, not MIT. Review
-[component licensing](docs/MOBI.md#component-licensing-and-redistribution) before distribution. No build-time `git submodule update --remote` is used.
-
-Optional Lua 5.1 tests (when a `lua5.1` binary is unavailable):
-
-```sh
-python3 -m venv .venv
-.venv/bin/pip install -r tests/requirements.txt
-.venv/bin/python tests/run_lua.py
-# Or run the unit suite directly:
-# LUA_PATH='./lua/?.lua;./lua/?/init.lua;;' lua5.1 tests/services_test.lua
-```
-
-This harness mocks Neovim scheduling/UI, but also executes a real Lua →
-TypeScript → C export/inspect/read round trip, a Rust ASCII conversion, and an
-offline KoSync document checksum, plus bidirectional MOBI conversion. To test the actual editor:
-
-```sh
-nvim --headless -u NONE -l tests/headless.lua
-```
-
-There are no GitHub Actions workflows. Run these checks locally; the actual
-headless UI test requires an installed Neovim binary.
-
-## Command-line services
-
-```sh
-node dist/cli.cjs create examples/book.json /tmp/my-book.epub
-node dist/cli.cjs inspect /tmp/my-book.epub
-node dist/cli.cjs read /tmp/my-book.epub 0        # zero-based spine index
-node dist/cli.cjs scan /tmp                    # nonrecursive library
-node dist/cli.cjs scan /tmp 'your name'        # title/creator substring search
-node dist/cli.cjs archive /tmp/my-book.epub
-build/wiz-archive inspect /tmp/my-book.epub    # standalone C inventory
-node dist/cli.cjs doctor
-```
-
-Paths with spaces should be quoted in the shell. Output files must not exist:
-export refuses to overwrite files or follow output symlinks. Create output
-parent directories yourself. Export chapter text is plain text, XML-escaped;
-it is **not** interpreted as HTML or Markdown.
-
-Successful TypeScript replies are `{"ok":true,"data":...}` on stdout. Errors
-are `{"ok":false,"error":"..."}` on stderr with exit code 1 (native usage
-errors use 2). JSON RPC accepts one request on stdin and exits:
-
-```sh
-printf '%s' '{"action":"inspect","path":"/tmp/my-book.epub"}' | node dist/cli.cjs rpc
-```
-
-The C service returns its inventory directly (`ok`, `totalBytes`, `entries`).
-An entry includes `name`, `size`, `compressedSize`, and `method`. Set
-`WIZ_ARCHIVE=/absolute/path/to/wiz-archive` to override the native executable.
-
-## Neovim / installer.nvim
-
-Build the checkout first. Add it to `runtimepath`, or adapt the
-[local lazy.nvim spec](examples/lazy.lua). That spec loads installer.nvim as a
-dependency. For a manual local installation:
+Requirements: **Neovim 0.10+**, **Node 22+**, npm, C99 compiler, Make, `ar`,
+**Rust 1.70+**, **Python 3.8+**. POSIX Linux/macOS are targeted; Linux is tested.
 
 ```lua
-vim.opt.runtimepath:prepend('/absolute/path/to/submodules')
-require('wizardo_services').setup({ node = 'node' })
-require('wizardo_services').register_commands() -- needed if adding rtp after startup
+{
+  'juliuslov/submodules',
+  name = 'hikari',
+  main = 'hikari',
+  branch = 'arena/fc59f9a1-submodules', -- open PR branch; remove after merge
+  cmd = { 'Hikari', 'HikariOpen', 'HikariClose', 'HikariConvert',
+    'HikariInspect', 'HikariDoctor', 'HikariFormats', 'HikariLibrary',
+    'HikariAscii', 'HikariEpubExport' },
+  build = 'git submodule update --init --recursive && npm ci && npm run build',
+  opts = { reader = { theme = 'auto' } },
+}
 ```
+
+See [`examples/lazy.lua`](examples/lazy.lua). `main = 'hikari'` makes setup
+unambiguous even though the repository slug is different. No dependency on
+installer.nvim is needed; an installed `kaeru.process` remains an optional
+compatibility process runner, with `vim.system` available independently.
+
+For a native-package installation, clone this branch under
+`stdpath('data')/site/pack/plugins/start/hikari`, then initialize/build there:
+
+```sh
+git submodule update --init --recursive
+npm ci
+npm run build
+```
+
+Or prepend a local checkout to `runtimepath` and call setup:
+
+```lua
+vim.opt.runtimepath:prepend('/absolute/path/to/hikari')
+require('hikari').setup({ node = 'node', reader = { theme = 'auto' } })
+```
+
+Run `:checkhealth hikari` and `:HikariDoctor`. Generate `:helptags /path/to/hikari/doc`
+if installing manually. Defaults work without setup when the plugin is on
+runtimepath; setup is safe to repeat. The build writes ignored `build/` and
+`dist/`, not library sources. Do not copy only the JS bundle: MOBI needs the
+Python adapter and pinned upstream source in the checkout too.
+
+## Read and convert
 
 | Command | Action |
 | --- | --- |
-| `:WizEpubOpen /path/book.epub` | Open the Ghost-inspired responsive reader with chapter navigation |
-| `:WizEpubClose` | Close the reader and restore your previous window |
-| `:WizMobiInspect /path/book.mobi` | Inspect DRM-free legacy MOBI metadata |
-| `:WizMobiConvert /path/book.epub /path/new.mobi` | Convert EPUB to text-focused MOBI6 (reverse with `.epub` output) |
-| `:WizEpubInspect /path/book.epub` | Show metadata and spine as JSON |
-| `:WizEpubExport /path/new.epub` | Export the current buffer as one text chapter |
-| `:WizLibrary /path/to/books` | Show a nonrecursive local EPUB inventory |
-| `:WizArchiveInspect /path/archive.zip` | Run the C ZIP checker |
-| `:WizServicesDoctor` | Show configured runtime/native availability |
-| `:checkhealth wizardo_services` | Check default installation files |
+| `:HikariOpen /books/book.epub` | Open the responsive EPUB reader |
+| `:HikariOpen /books/book.mobi` | Convert to temporary EPUB, then read; preserve the original |
+| `:HikariOpen! /books/book.azw3` | Explicitly use installed Calibre, then read |
+| `:HikariClose` | Close and discard temporary converted content |
+| `:HikariConvert in.epub new.mobi` | Native, independently validated MOBI6 export |
+| `:HikariConvert in.mobi new.epub` | Native legacy-MOBI import |
+| `:HikariConvert! in.azw3 new.epub` | Optional Calibre extended import |
+| `:HikariConvert! in.epub new.azw3` | Optional Calibre KF8 export |
+| `:HikariInspect book.mobi` | Native EPUB/legacy-MOBI metadata inspection |
+| `:HikariFormats` | Engine capabilities and limitations |
+| `:HikariDoctor` | Installed runtime/native availability |
+| `:HikariEpubExport new.epub` | Export current buffer as a plain-text EPUB |
+| `:HikariLibrary /books` | Nonrecursive EPUB inventory |
+| `:HikariAscii image.png` | Rust image-to-ASCII scratch buffer |
 
-The export command defaults to author `Anonymous` and language `en`. Override
-with `vim.g.wizardo_epub_author` and `vim.g.wizardo_epub_language`, or use the
-Lua API for complete metadata and multiple chapters. It uses the buffer's
-filename as its title. All Lua callbacks use `(error, data)`:
+`:Hikari open ...`, `:Hikari convert ...`, `:Hikari! convert ...`, and
+`:Hikari doctor` are equivalent dispatcher forms. Escape spaces in Ex arguments
+with backslashes, or use Lua paths as shown below. **Bang selects Calibre; it
+never permits overwriting.** Output parents must exist. Existing output files
+and symlinks are not overwritten.
+
+Reader: `n`/`p` chapters, `t` contents, `d` reader-only light/dark palette,
+`q` close. Wide terminals get a sidebar; small terminals get a chapter drawer.
+Theme changes do not replace your global colorscheme. Converted books are
+removed on close/replacement/error/exit; stale conversion callbacks cannot
+reopen a reader you closed. See [reader details](docs/READER.md).
+
+## Conversion engines
+
+| Engine | Input | Output |
+| --- | --- | --- |
+| **Native (default)** | EPUB; DRM-free MOBI6/7, uncompressed or PalmDOC | EPUB; deterministic UTF-8 MOBI6 |
+| **Calibre (explicit opt-in)** | EPUB; MOBI including HUFF/CDIC; KF8/AZW3; hybrid MOBI/KF8, subject to preflight/policy | EPUB; old MOBI6; AZW3 |
+
+Install Calibre's `ebook-convert` yourself for the second row, or set
+`HIKARI_CALIBRE=/absolute/path/to/ebook-convert`. There is no silent fallback,
+automatic installation, external DRM plugin loading from your normal Calibre
+profile, or promise of universal Kindle support. KFX, Topaz, encrypted books,
+dictionaries, print replicas and non-MOBI PRC/PDB are not supported.
+
+**All paths are text-focused, not lossless.** Images, fonts, CSS/layout,
+original links/navigation and rich metadata are omitted. The native writer now
+regenerates a Contents page and legacy guide links with UTF-8 **byte** offsets;
+imports skip that generated page rather than duplicating it as a chapter.
+Both pinned decoders validate MOBI exports. AZW3 exports use a Calibre round-trip
+into a bounded readable EPUB, not independent KF8 conformance certification.
+
+External processing uses private work/config/cache/temp directories, bounded
+logs and deadlines, and process-group cleanup. Intermediate output is checked
+before publication. **Calibre scratch disk is not quota-limited, and neither
+engine is an OS/network sandbox.** Isolate hostile books appropriately.
+See [formats, API, limits and licensing](docs/MOBI.md).
+
+## Lua / CLI / RPC
 
 ```lua
-local epub = require('wizardo_services.epub')
-epub.inspect('/tmp/my-book.epub', function(err, info)
+local hikari = require('hikari')
+hikari.open('/books/a book.mobi')
+hikari.convert('/books/a book.epub', '/books/new.mobi', function(err, result)
   if err then vim.notify(err, vim.log.levels.ERROR); return end
-  vim.print(info.title, info.chapters)
+  vim.print(result.path, result.warnings)
 end)
-epub.read('/tmp/my-book.epub', 0, function(err, chapter)
-  if not err then vim.print(chapter.text) end
-end)
-epub.export({
-  title = 'My book', author = 'Author', language = 'en',
-  chapters = { { title = 'First chapter', text = 'Hello, reader.' } },
-}, '/tmp/new-book.epub', function(err, result)
-  if err then vim.notify(err, vim.log.levels.ERROR) else vim.print(result.path) end
-end)
-require('wizardo_services.library').scan('/tmp', 'author', function(err, result)
-  if not err then vim.print(result.books, result.errors) end
-end)
+hikari.convert('/books/legacy.azw3', '/books/new.epub',
+  { backend = 'calibre' }, function(err, result)
+    if not err then vim.print(result) end
+  end)
 ```
-
-Advanced setup accepts `node`, `cli` (absolute compiled CLI path), and `env`
-(e.g. `{ WIZ_ARCHIVE = '/path/to/wiz-archive' }`). Arguments and JSON stdin
-are passed without a shell. Native checks have a 30-second deadline; the
-standalone `vim.system` bridge has a 60-second deadline. When using upstream
-`kaeru.process`, its process lifecycle applies instead.
-
-## Supported EPUB subset and safety
-
-* Reads EPUB 2.0 / 3.0 package metadata, creators, language, unique identifier,
-  manifest, and ordered XHTML spine. Exposes linear/nonlinear spine flags.
-* Exports EPUB 3.0 package syntax compatible with EPUB 3.3: first stored
-  `mimetype` without a local extra field, container XML, Dublin Core metadata,
-  modified timestamp, XHTML chapters, and navigation TOC. Explicit identifier
-  and modified timestamp produce reproducible output.
-* Reader shows chapter **text**, not layout/CSS/images, audio, JavaScript, or
-  browser rendering. Navigation choices currently use spine filenames rather
-  than parsed TOC labels. UTF-8 XML is supported; UTF-16 is not.
-* No DRM, encryption or font obfuscation; `META-INF/encryption.xml` is rejected.
-  XML internal/external DTD/entity declarations are rejected (plain HTML doctype
-  allowed). No external resources are fetched or archive entries extracted.
-* Native CRC validation happens before TS inflation, against a private snapshot
-  of the same input bytes. Unsafe/absolute/traversing or invalid-UTF-8 names, duplicates,
-  encryption, and compression methods other than stored/deflate are rejected.
-* Limits: 64 MiB input ZIP, 4,096 entries, 16 MiB per expanded entry, 128 MiB
-  total expansion; XML parser nesting 128. Writer: 1–256 chapters, 1 MiB text
-  per chapter, 8 MiB total; RPC request: 12 MiB. Library scans at most 256 books,
-  skip symlinks, and report per-book errors. Scans are sequential and can be slow.
-* This is an inspection/export tool, **not an EPUB conformance validator**.
-  Validate important exports with [EPUBCheck](https://github.com/w3c/epubcheck)
-  and test them in your target reader. A scratch buffer never executes markup,
-  but hostile files should still be processed in an OS sandbox.
-
-See [service protocol](docs/PROTOCOL.md) and [architecture](docs/ARCHITECTURE.md).
-
-
-## Image to ASCII (Rust)
 
 ```sh
-make ascii test-ascii
-build/wiz-ascii photo.png --width 100
-node dist/cli.cjs ascii photo.png 100
+node dist/cli.cjs convert source.epub new.mobi
+node dist/cli.cjs convert legacy.azw3 new.epub calibre
+node dist/cli.cjs convert source.epub new.azw3 calibre
+node dist/cli.cjs mobi-inspect legacy.mobi
+node dist/cli.cjs formats
+node dist/cli.cjs doctor
 ```
 
-Neovim: `:WizAscii /path/photo.png`. See [image service details](docs/ASCII.md)
-for transparency, inversion, custom ramps, dimensions, and the Lua/RPC APIs.
+`mobi-convert` remains a CLI alias. JSON RPC accepts one request then EOF:
 
+```json
+{"action":"convert","path":"legacy.azw3","output":"new.epub","conversion":{"backend":"calibre"}}
+```
 
-## KoSync client
+Success goes to stdout, errors to stderr as `{ "ok": false, "error": "..." }`.
+Lua callbacks use `(error, data)`. `require('hikari.epub')`, `.mobi`, `.reader`,
+`.ascii`, `.kosync`, `.library` expose specialized APIs. See `:help hikari-api`
+and [service protocol](docs/PROTOCOL.md).
+
+`HIKARI_ARCHIVE`, `HIKARI_ASCII`, `HIKARI_MOBI`, `HIKARI_PYTHON` override tool
+paths. Corresponding `WIZ_*` names still work. Set `vim.g.hikari_author` and
+`vim.g.hikari_language` for buffer export metadata. KoSync remains explicitly
+configured, with no automatic account creation or progress uploads; see
+[KoSync configuration](docs/KOSYNC.md).
+
+## Real pinned submodules
+
+| Git submodule | Used by | License / purpose |
+| --- | --- | --- |
+| `vendor/miniz` | C | MIT, ZIP integrity policy |
+| `vendor/fflate` | TypeScript | MIT, EPUB ZIP read/write |
+| `vendor/stb` | Rust via C | MIT/public-domain upstream notices, image decoding |
+| `vendor/dkjson` | Lua | MIT, JSON fallback |
+| `vendor/libmobi` | C shared library | LGPL-3.0+, metadata and bounded text validation |
+| `vendor/kindleunpack` | Python subprocess | GPL-3.0, independent legacy decoder |
+
+Source is used from the pinned gitlinks, without `submodule update --remote`.
+Calibre is an optional **installed executable**, not an unused giant submodule.
+See [web research and source revisions](docs/RESEARCH.md). Preserve upstream
+notices and review [redistribution obligations](docs/MOBI.md#component-licensing-and-redistribution).
+Original non-Python service code still has no general distribution license grant
+(`UNLICENSED`); the Python decoder is explicitly GPL-3.0-only.
+
+## Tests and migration
 
 ```sh
-node dist/cli.cjs kosync-document /books/book.epub  # offline KOReader partial MD5
-node dist/cli.cjs kosync-authorize               # credentials from environment
-node dist/cli.cjs kosync-pull DOCUMENT_ID
+npm test
+python3 -m venv .venv
+.venv/bin/pip install -r tests/requirements.txt
+.venv/bin/python tests/run_lua.py
+nvim --headless -u NONE -l tests/headless.lua   # needs an installed Neovim
 ```
 
-Supports explicit registration, authentication, progress pull and push, and both
-KOReader checksum modes. HTTPS by default; no automatic sync or credential
-storage. See [KoSync configuration and examples](docs/KOSYNC.md). KOReader
-positions are opaque page/XPointer strings, **not EPUB chapter indices**.
-
-
-## Ghost-style EPUB reading UI
-
-`:WizEpubOpen /books/book.epub` now opens a native reading workspace with a
-contents sidebar, centered prose, chapter navigation, estimated reading time,
-and reader-only light/dark palettes. Below 90 columns it becomes a compact
-single-pane layout with a chapter drawer and shorter, clickable controls.
-
-Use `n`/`p` for chapters, `t` for contents, `d` for theme, and `q` to close.
-Configure `reader = { theme = 'auto' }` in `setup`. This is a mobile-terminal
-layout, not a separate phone app. See [reader controls and limits](docs/READER.md).
-No GitHub workflow is included; tests are run locally.
-
-
-## EPUB ↔ MOBI converter
+The external adapter is tested using a fake executable for protocol, failure,
+timeout and output-policy checks. To run the separate **real Calibre** integration:
 
 ```sh
-node dist/cli.cjs mobi-convert '/books/source.epub' '/books/new.mobi'
-node dist/cli.cjs mobi-inspect '/books/new.mobi'
-node dist/cli.cjs mobi-convert '/books/legacy.mobi' '/books/new.epub'
+HIKARI_TEST_REAL_CALIBRE=1 npm test  # requires ebook-convert installed
 ```
 
-Also available as `:WizMobiConvert`, `:WizMobiInspect`, Lua APIs and JSON RPC.
-New exports are validated with **both** pinned MOBI libraries before exclusive
-file creation. Python 3.8+ is required at runtime; no pip package is needed.
+Real Calibre and real Neovim were unavailable in this sandbox. No physical
+Kindle, EPUBCheck or macOS certification is claimed. There are **no GitHub
+workflows**; validation is local. See [validation record](docs/VALIDATION.md).
 
-**Text-focused, not lossless:** DRM-free legacy MOBI6/7 only. Images, fonts,
-layout and original navigation are not retained. KF8/AZW3/KFX, hybrid files,
-HUFF/CDIC, dictionaries and encrypted books return errors rather than misleading
-conversions. See [formats, limits, APIs and licensing](docs/MOBI.md).
+Old `require('wizardo_services')` APIs and `Wiz*` commands are compatibility
+aliases sharing the canonical hikari state. New configurations should use
+`hikari` / `Hikari*`. The repository URL has not changed and this is not an
+upstream installer.nvim patch.

@@ -92,6 +92,12 @@ test('generic CLI and JSON RPC expose the opt-in backend', t => {
   const f = fixture(t);
   const result = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'convert', f.epub, f.output, 'calibre'], { encoding: 'utf8' });
   assert.equal(result.status, 0, result.stderr); assert.equal(JSON.parse(result.stdout).data.backend, 'calibre');
+  const rpc = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'rpc'], { encoding: 'utf8',
+    input: JSON.stringify({ action: 'convert', path: f.output, output: path.join(f.dir, 'restored.epub'), conversion: { backend: 'calibre' } }),
+  });
+  assert.equal(rpc.status, 0, rpc.stderr); assert.equal(JSON.parse(rpc.stdout).data.backend, 'calibre');
+  const formats = spawnSync(process.execPath, [path.resolve('dist/cli.cjs'), 'formats'], { encoding: 'utf8' });
+  assert.equal(formats.status, 0); assert.match(JSON.parse(formats.stdout).data.calibre.requires, /explicit/);
 });
 test('real Calibre AZW3 and MOBI round-trips (optional installed-tool integration)', { skip: process.env.HIKARI_TEST_REAL_CALIBRE !== '1' }, async t => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hikari-real-calibre-')); t.after(() => fs.rmSync(dir, { recursive: true, force: true }));

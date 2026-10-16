@@ -18,6 +18,11 @@ reader_lua = LuaRuntime(unpack_returned_tuples=True)
 reader_lua.execute("package.path = ... .. '/lua/?.lua;' .. ... .. '/lua/?/init.lua;' .. package.path", str(ROOT), str(ROOT))
 reader_lua.execute((ROOT / 'tests/reader_test.lua').read_text())
 
+# First-class hikari plugin/API lifecycle in an isolated editor model.
+hikari_lua = LuaRuntime(unpack_returned_tuples=True)
+hikari_lua.execute("package.path = ... .. '/lua/?.lua;' .. ... .. '/lua/?/init.lua;' .. package.path", str(ROOT), str(ROOT))
+hikari_lua.execute((ROOT / 'tests/hikari_test.lua').read_text())
+
 # Use a fresh runtime, with the process primitive implemented by Python subprocess.
 lua = LuaRuntime(unpack_returned_tuples=True)
 lua.execute("package.path = ... .. '/lua/?.lua;' .. ... .. '/lua/?/init.lua;' .. package.path", str(ROOT), str(ROOT))
@@ -40,7 +45,7 @@ with tempfile.TemporaryDirectory() as directory:
     lua.globals().test_mobi = str(Path(directory) / 'Lua book.mobi')
     lua.globals().test_roundtrip = str(Path(directory) / 'Lua roundtrip.epub')
     lua.execute('''
-      local epub = require('wizardo_services.epub')
+      local epub = require('hikari.epub')
       local exported, inspected, read = false, false, false
       epub.export({ title = 'Lua book', author = 'Tester', language = 'en',
         chapters = { { title = 'Hello', text = 'Written from Lua.' } } }, test_output,
@@ -53,15 +58,15 @@ with tempfile.TemporaryDirectory() as directory:
       end)
       assert(exported and inspected and read)
       local rendered, fingerprinted = false, false
-      require('wizardo_services.ascii').convert(test_image, {}, function(err, data)
+      require('hikari.ascii').convert(test_image, {}, function(err, data)
         assert(not err, err); assert(data.columns == 80 and data.rows == 20); rendered = true
       end)
-      require('wizardo_services.kosync').document(test_output, 'binary', function(err, data)
+      require('hikari.kosync').document(test_output, 'binary', function(err, data)
         assert(not err, err); assert(#data.document == 32); fingerprinted = true
       end)
       assert(rendered and fingerprinted)
       local converted, decoded, restored = false, false, false
-      local mobi = require('wizardo_services.mobi')
+      local mobi = require('hikari.mobi')
       mobi.convert(test_output, test_mobi, function(err, data)
         assert(not err, err); assert(data.to == 'mobi' and not data.lossless); converted = true
       end)

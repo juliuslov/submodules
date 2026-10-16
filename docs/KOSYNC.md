@@ -99,11 +99,11 @@ Optional metadata upload is intentionally not supported.
 ## Lua / Neovim
 
 ```lua
-require('wizardo_services').setup({
+require('hikari').setup({
   node = 'node',
   kosync = { server = 'https://sync.koreader.rocks' },
 })
-local sync = require('wizardo_services.kosync')
+local sync = require('hikari.kosync')
 sync.authorize(function(err, result)
   if err then vim.notify(err) else vim.print(result.authorized) end
 end)
@@ -119,11 +119,11 @@ end)
 
 Commands:
 
-* `:WizKoSyncAuth`
-* `:WizKoSyncRegister` — explicit account creation
-* `:WizKoSyncDocument /books/book.epub` — offline binary checksum
-* `:WizKoSyncPull DOCUMENT_ID` — show JSON; never move reading position
-* `:WizKoSyncPush! /path/progress.json` — bang required to acknowledge a write
+* `:HikariKoSyncAuth`
+* `:HikariKoSyncRegister` — explicit account creation
+* `:HikariKoSyncDocument /books/book.epub` — offline binary checksum
+* `:HikariKoSyncPull DOCUMENT_ID` — show JSON; never move reading position
+* `:HikariKoSyncPush! /path/progress.json` — bang required to acknowledge a write
 
 The TypeScript library exports `KoSyncClient`, `partialMd5`, `filenameMd5`, and
 `documentChecksum` from `dist/index.cjs`. `KoSyncClient` accepts `username`, one

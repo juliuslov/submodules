@@ -108,3 +108,41 @@ KF8/AZW3/KFX, hybrid files, HUFF/CDIC, print replicas and dictionaries. Conversi
 is text-focused, not lossless: no claim is made about preserving images, fonts,
 CSS, links, original navigation, or acceptance by Amazon delivery services.
 The two new libraries are NOT MIT; see docs/MOBI.md before redistribution.
+
+## hikari plugin and broader MOBI conversion (2026-10-16)
+
+This is targeted primary-source research, not a claim to have exhaustively
+searched every MOBI page on the web. Sources fetched through GitHub's API:
+
+* [Neovim plugin documentation, v0.11.5](https://github.com/neovim/neovim/blob/v0.11.5/runtime/doc/usr_05.txt)
+  and [API docs](https://github.com/neovim/neovim/blob/v0.11.5/runtime/doc/api.txt):
+  runtime plugin entry points, help files, user-command attributes and async
+  process APIs. A canonical lua/hikari namespace, plugin/hikari.lua,
+  doc/hikari.txt and :checkhealth hikari make the project a standalone plugin.
+* [lazy.nvim docs](https://github.com/folke/lazy.nvim/blob/306a05526ada86a7b30af95c5cc81ffba93fef97/doc/lazy.nvim.txt):
+  explicitly set name/main/opts because the repo slug is not hikari; build on
+  install/update, not startup. installer.nvim is optional, not a dependency.
+* [Calibre FAQ](https://github.com/kovidgoyal/calibre/blob/8a009af2bd50aa733fff47fcd59025231459b081/manual/faq.rst)
+  and [conversion manual](https://github.com/kovidgoyal/calibre/blob/8a009af2bd50aa733fff47fcd59025231459b081/manual/conversion.rst):
+  MOBI6 versus KF8, PRC's generic nature, format support, and the importance of
+  a legacy Contents/guide entry rather than assuming modern EPUB navigation.
+* [MOBI input plugin](https://github.com/kovidgoyal/calibre/blob/8a009af2bd50aa733fff47fcd59025231459b081/src/calibre/ebooks/conversion/plugins/mobi_input.py),
+  [reader](https://github.com/kovidgoyal/calibre/blob/8a009af2bd50aa733fff47fcd59025231459b081/src/calibre/ebooks/mobi/reader/mobi6.py),
+  and [output plugin](https://github.com/kovidgoyal/calibre/blob/8a009af2bd50aa733fff47fcd59025231459b081/src/calibre/ebooks/conversion/plugins/mobi_output.py):
+  KF8/hybrid routing, HUFF/CDIC, encryption rejection and old/new/both output
+  options. The new adapter explicitly chooses old MOBI for legacy output.
+* [Calibre legacy serializer](https://github.com/kovidgoyal/calibre/blob/8a009af2bd50aa733fff47fcd59025231459b081/src/calibre/ebooks/mobi/writer2/serializer.py):
+  guide references, fixed-width filepos values and byte-buffer offsets informed
+  the original native writer's generated Contents/guide implementation. Code
+  was not copied; the new implementation is tested with multibyte UTF-8 titles.
+* Revisited the pinned libmobi and KindleUnpack READMEs/source noted above:
+  their broader advertised support does not erase the adapter's stricter native
+  safety policy or make KindleUnpack's KF8 output guaranteed valid EPUB.
+
+Decision: keep the six meaningful pinned submodules, and add an **explicitly
+opt-in installed Calibre executable**, not an unused enormous submodule or a
+silent fallback. Extended input is normalized to a policy-checked EPUB; output
+is still text-focused. Calibre is unavailable in this sandbox: external tests
+use a fake executable and an optional real-tool test remains gated. Neovim's
+v0.11.5 release redirect is blocked by the sandbox host allowlist, so editor
+models are not presented as real Neovim validation. KFX/DRM removal are not added.

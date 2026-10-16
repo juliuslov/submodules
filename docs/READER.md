@@ -1,9 +1,9 @@
 # Ghost-inspired Neovim EPUB reader
 
-Open a book with `:WizEpubOpen /path/book.epub` after building the services.
+Open a book with `:HikariEpubOpen /path/book.epub` after building the services.
 The companion opens a modal reading workspace in native Neovim floating windows,
 not a browser, WebView, or separate mobile app. Closing restores the previous
-window without editing its buffer. `:WizEpubClose` also closes the workspace.
+window without editing its buffer. `:HikariEpubClose` also closes the workspace.
 
 ## Editorial style
 
@@ -77,12 +77,12 @@ cursor position in the rendered chapter, not an exact ebook location.
 ## Configuration and Lua API
 
 ```lua
-require('wizardo_services').setup({
+require('hikari').setup({
   node = 'node',
   reader = { theme = 'auto' }, -- 'auto', 'dark', or 'light'
 })
 
-local reader = require('wizardo_services.reader').open('/books/book.epub')
+local reader = require('hikari.reader').open('/books/book.epub')
 -- Loading is asynchronous. Reader.current() returns the active reader, or nil.
 -- Optional integrations can call these methods:
 reader:contents()
@@ -92,7 +92,7 @@ reader:toggle_theme()
 -- reader:close()
 ```
 
-`:WizEpubInspect`, the EPUB service APIs, and `ui.show` for diagnostics/ASCII
+`:HikariEpubInspect`, the EPUB service APIs, and `ui.show` for diagnostics/ASCII
 remain available separately. Opening a second reader closes the first one.
 Reading positions and theme toggles are in-memory for that session; nothing is
 written to the EPUB or uploaded to KoSync. KOReader XPointers are **not** mapped
